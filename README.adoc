@@ -1,5 +1,7 @@
 = A demo application for the ENEXA Knowledge Extraction use case
 
+image::./images/screenshot.png[]
+
 == Installation
 
 ```bash
