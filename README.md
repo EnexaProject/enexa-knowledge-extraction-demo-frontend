@@ -1,1 +1,0 @@
-# enexa-knowledge-extration-demo-frontend
