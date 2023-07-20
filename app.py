@@ -19,12 +19,13 @@ logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
 # config
-SERVER_ENDPOINT = "http://localhost:8080"
-ENEXA_SHARED_DIRECTORY = config("ENEXA_SHARED_DIRECTORY")
-# TODO: needs to be injected somehow
-ENEXA_WRITEABLE_DIRECTORY = ENEXA_SHARED_DIRECTORY + "/experiment1"
+SERVER_ENDPOINT = config("SERVER_ENDPOINT", default="http://localhost:8080")
+ENEXA_SHARED_DIRECTORY = config("ENEXA_SHARED_DIRECTORY", default="/tmp/enexa-shared-directory")
+ENEXA_WRITEABLE_DIRECTORY = config("ENEXA_WRITEABLE_DIRECTORY", default=ENEXA_SHARED_DIRECTORY + "/experiments")
+SLEEP_IN_SECONDS = config("SLEEP_IN_SECONDS", default=1, cast=int)
+
+# constants
 ENEXA_LOGO = "https://raw.githubusercontent.com/EnexaProject/enexaproject.github.io/main/images/enexacontent/enexa_logo_v0.png?raw=true"
-SLEEP_IN_SECONDS = 1
 ENEXA_EXPERIMENT_SHARED_DIRECTORY_LITERAL = "http://w3id.org/dice-research/enexa/ontology#sharedDirectory"
 
 def write_file_to_folder(folder, filename, content):
@@ -137,7 +138,7 @@ This demo is showing the integration of the processing steps regarding the Class
 Upload a JSON file containing one array of URLs to Wikipedia articles.
 
 """)
-uploaded_files = st.file_uploader("Upload a JSON file", accept_multiple_files=True, label_visibility="collapsed")
+uploaded_files = st.file_uploader("Upload a JSON file", accept_multiple_files=True, label_visibility="collapsed", type=["json"])
 
 if uploaded_files is not None and uploaded_files != []:
     for uploaded_file in uploaded_files:

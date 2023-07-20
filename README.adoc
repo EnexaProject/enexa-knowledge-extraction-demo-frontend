@@ -8,6 +8,20 @@ image::./images/screenshot.png[]
 pip install -r requirements.txt
 ```
 
+== Configuration
+
+The application needs to know where the ENEXA service is running, etc. 
+To do so, you need to set the environment variable `ENEXA_SERVICE_URL` to the URL of the service. 
+
+The following parameters are required and can be defined in the link:./.env[`.env`] file or as environment variables:
+
+* `SERVER_ENDPOINT`
+* `ENEXA_SHARED_DIRECTORY`
+* `ENEXA_WRITEABLE_DIRECTORY` 
+* `SLEEP_IN_SECONDS` 
+
+Note, for all of these variables defaults are defined in the link:./app.py[app.py] that are intended to be used for development purposes only.
+
 == Usage
 
 ```bash
