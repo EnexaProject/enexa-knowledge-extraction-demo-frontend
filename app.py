@@ -129,7 +129,14 @@ enexa:experiment <{}> ;
   
   return check_module_instance_status_message_as_jsonld
 
+def print_banner_to_console():
+  with open("images/banner.txt") as file:
+    data = file.read()
+    print(data)
+
 st.title("ENEXA Integration Demo")
+
+print_banner_to_console()
 
 st.markdown(    
 """
