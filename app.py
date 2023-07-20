@@ -88,7 +88,11 @@ def turtle_to_jsonld(turtle_data):
   return graph.serialize(format="json-ld", indent=2)
 
 def start_module(experiment_resource):
-  # TODO: change parameter IRI 
+  """
+    creates a message for starting a module instance
+    
+    be aware that http://example.org/UvA/parameters/urls_to_process is a hard-coded parameter for the module expressing the property for the input data (JSON file)
+  """
   start_module_message = """
 @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
 @prefix prov:   <http://www.w3.org/ns/prov#> .
@@ -97,7 +101,7 @@ def start_module(experiment_resource):
 [] rdf:type enexa:ModuleInstance ;
 enexa:experiment <{}> ;
 hobbit:instanceOf <http://w3id.org/enexa/vocab#enexa-extraction-module> ;
-<http://w3id.org/enexa/vocab#enexa-extraction-module-input-file> <{}> .
+<http://example.org/UvA/parameters/urls_to_process> <{}> .
 """.format(experiment_resource, file_id)            
   start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
