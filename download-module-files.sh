@@ -10,6 +10,6 @@ curl -o modules/transform.ttl https://raw.githubusercontent.com/EnexaProject/ene
 # DICE Embeddings module
 curl -o modules/embeddings.ttl https://raw.githubusercontent.com/EnexaProject/enexa-dice-embeddings/master/module.ttl
 # CEL Train module
-# TODO curl -o modules/cel-train.ttl 
+curl -o modules/cel-train.ttl https://raw.githubusercontent.com/EnexaProject/enexa-cel-train-module/main/module.ttl
 # CEL service
-# TODO curl -o modules/cel-service.ttl 
+curl -o modules/cel-deploy.ttl https://raw.githubusercontent.com/EnexaProject/enexa-dice-embeddings/master/module.ttl
