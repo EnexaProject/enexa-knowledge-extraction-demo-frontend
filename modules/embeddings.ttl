@@ -1,0 +1,73 @@
+# Don't change this file! It is generated based on module.ttl.template.
+@prefix alg:    <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06#> .
+@prefix dcat:   <http://www.w3.org/ns/dcat#> .
+@prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+@prefix hobbit: <http://w3id.org/hobbit/vocab#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sd:     <http://www.w3.org/ns/sparql-service-description#> .
+@prefix xsd:    <http://www.w3.org/2000/10/XMLSchema#> .
+@base           <http://w3id.org/dice-research/enexa/module/dice-embeddings/> .
+
+<1.0.0> a enexa:Module ;
+	rdfs:label "DICE Knowledge Graph Embedding Framework"@en ;
+	rdfs:comment "This framework provides the functionality to generate knowledge graph embedding models based on a variaty of embedding algorithms."@en ; 
+	hobbit:image <urn:container:docker:image:hub.cs.upb.de/enexa/images/enexa-dice-embeddings:1.0.0> ; 
+	alg:parameter
+		<parameter/batch_size> ,
+		<parameter/embedding_dim> ,
+		<parameter/model> ,
+		<parameter/num_epochs> ,
+		<parameter/path_single_kg> ;
+	alg:produces
+		<result/model.pt> ,
+		<result/entity_embeddings.csv> .
+	
+<parameter/batch_size> a alg:Parameter ;
+	rdfs:label "Batch size"@en ; 
+	rdfs:comment "The size of the single batches."@en ; 
+	rdfs:range xsd:nonNegativeInteger .
+
+<parameter/embedding_dim> a alg:Parameter ;
+	rdfs:label "Number of dimensions"@en ; 
+	rdfs:comment "The number of dimensions the generated embedding model should have."@en ; 
+	rdfs:range xsd:nonNegativeInteger .
+
+<parameter/model> a alg:Parameter ;
+	rdfs:label "Embedding algorithm"@en ; 
+	rdfs:comment "The knowledge graph embedding algorithm that is used to generate the embedding model."@en ; 
+	rdfs:range <algorithm/KGEAlgorithm> .
+	
+<parameter/num_epochs> a alg:Parameter ;
+	rdfs:label "Number of epochs"@en ; 
+	rdfs:comment "The number of epochs used during the generation of embeddings."@en ; 
+	rdfs:range xsd:nonNegativeInteger .
+
+<parameter/path_single_kg> a alg:Parameter ;
+	rdfs:label "Knowledge graph"@en ; 
+	rdfs:comment "The file containing the knowledge graph that should be embedded."@en ; 
+	rdfs:range rdf:Resource .
+
+<algorithm/KGEAlgorithm> a rdfs:Class ;
+	rdfs:label "Knowledge graph embedding algorithm"@en ; 
+	rdfs:comment "The class of Knowledge graph embedding algorithms."@en .
+
+<algorithm/ConEx> a <algorithm/KGEAlgorithm> ;
+	rdf:value "ConEx" ;
+	rdfs:label "ConEx"@en ;
+	rdfs:comment "The knowledge graph embedding algorithm ConEx proposed by Demir et al."@en .
+
+<algorithm/DistMult> a <algorithm/KGEAlgorithm> ;
+	rdf:value "DistMult" ;
+	rdfs:label "DistMult"@en ;
+	rdfs:comment "The knowledge graph embedding algorithm DistMult."@en .
+
+<result/model.pt> a alg:Result ;
+	rdfs:label "Knowledge graph embedding model"@en ;
+	rdfs:comment "The Knowledge graph embedding model created by the algorithm."@en .
+
+<result/entity_embeddings.csv> a alg:Result ;
+	rdfs:label "Entity embeddings"@en ;
+	rdfs:comment "The entity embeddings of the given knowledge graph as CSV file."@en .

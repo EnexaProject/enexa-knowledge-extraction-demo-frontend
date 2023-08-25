@@ -1,0 +1,60 @@
+# Don't change this file! It is generated based on module.ttl.template.
+@base           <http://w3id.org/dice-research/enexa/module/extraction/> .
+@prefix alg:    <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+@prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+@prefix hobbit: <http://w3id.org/hobbit/vocab#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+<1.0.0> a enexa:Module ;
+	rdfs:label "ENEXA Extraction Module"@en ;
+	rdfs:comment "This module downloads Wikipedia articles based on a given list of article URLs and extracts structured data from these articles."@en ;
+	hobbit:image <urn:container:docker:image:hub.cs.upb.de/enexa/images/enexa-extraction-module:1.0.0> ;
+	alg:parameter <parameter/urls_to_process>, <parameter/path_generation_parameters> ;
+	alg:produces <result/chunks>, <result/entities>, <result/extractions>, <result/extractions_with_wikidata_triples>, <result/relations>, <result/triples>, <result/types> .
+
+<parameter/urls_to_process> a alg:Parameter ;
+	rdfs:label "List of URLs" ;
+	rdfs:comment "A list of URLs of Wikipedia articles from which data should be extracted." .
+
+<parameter/path_generation_parameters> a alg:Parameter ;
+	rdfs:label "Path generation parameters" ;
+	rdfs:comment "A config file containing parameters for the path generation." .
+
+<result/chunks> a alg:Result ;
+	rdfs:label "Data chunks" ;
+	rdfs:comment "Intermediate data chunks." ;
+	rdfs:range prov:Entity .
+
+<result/entities> a alg:Result ;
+	rdfs:label "Extracted entities" ;
+	rdfs:comment "A list of entities extracted from the data." ;
+	rdfs:range prov:Entity .
+
+<result/extractions> a alg:Result ;
+	rdfs:label "Extracted data" ;
+	rdfs:comment "Data extracted from the processed documents." ;
+	rdfs:range prov:Entity .
+
+<result/extractions_with_wikidata_triples> a alg:Result ;
+	rdfs:label "Extracted data with Wikidata triples" ;
+	rdfs:comment "Extracted data enhanced with data from Wikidata." ;
+	rdfs:range prov:Entity .
+
+<result/relations> a alg:Result ;
+	rdfs:label "Extracted relations" ;
+	rdfs:comment "A list of relations extracted from the data." ;
+	rdfs:range prov:Entity .
+
+<result/triples> a alg:Result ;
+	rdfs:label "Extracted triples" ;
+	rdfs:comment "The triples extracted from the data." ;
+	rdfs:range prov:Entity .
+
+<result/types> a alg:Result ;
+	rdfs:label "Extracted types" ;
+	rdfs:comment "A list of types extracted from the data." ;
+	rdfs:range prov:Entity .
+

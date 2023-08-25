@@ -1,0 +1,58 @@
+# Don't change this file! It is generated based on module.ttl.template.
+@base           <http://w3id.org/dice-research/enexa/module/transform/> .
+@prefix alg:    <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+@prefix dcat:   <http://www.w3.org/ns/dcat#> .
+@prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+@prefix iana-a: <https://www.iana.org/assignments/media-types/application/> .
+@prefix iana-t: <https://www.iana.org/assignments/media-types/text/> .
+@prefix hobbit: <http://w3id.org/hobbit/vocab#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+<0.0.1> a enexa:Module ;
+	rdfs:label "ENEXA Transformation Module"@en ;
+	rdfs:comment "This module allows the transformation and concatenation of RDF datasets."@en ;
+	hobbit:image <urn:container:docker:image:hub.cs.upb.de/enexa/enexa-transform-module:0.0.1> ;
+	alg:parameter <parameter/input>, <parameter/outputMediaType> ;
+	alg:produces <result/output> .
+
+<parameter/input> a alg:Parameter ;
+	rdfs:label "Input dataset" ;
+	rdfs:comment "An RDF dataset that is used as input for the transformation." .	
+
+<parameter/outputMediaType> a alg:Parameter ;
+	rdfs:label "Output format" ;
+	rdfs:comment "The format of the output dataset." ;	
+	rdfs:range <StreamableRDFSerialization> .
+
+<result/output> a alg:Result ;
+	rdfs:label "Output dataset" ;
+	rdfs:comment "The output dataset that is created as result of the transformation." ;
+	rdfs:range prov:Entity .
+
+<StreamableRDFSerialization> a owl:Class ;
+	rdfs:label "stream-able RDF serializations" ;
+	rdfs:comment "The class of RDF serializations that can be streamed and, hence, are supported as output format by the ENEXA transformator module." .
+
+iana-a:n-quads a <StreamableRDFSerialization> ;
+	rdfs:label "N-Quads" ;
+	rdfs:comment "N-Quads is a line-based, plain text format for encoding an RDF dataset." ;
+	rdfs:isDefinedBy <https://www.w3.org/TR/n-quads/> .
+	
+iana-a:n-triples a <StreamableRDFSerialization> ;
+	rdfs:label "N-Triples" ;
+	rdfs:comment "N-Triples is a line-based, plain text format for encoding an RDF graph." ;
+	rdfs:isDefinedBy <https://www.w3.org/TR/n-triples/> .
+
+iana-a:trig a <StreamableRDFSerialization> ;
+	rdfs:label "TriG" ;
+	rdfs:comment "TriG is a concrete syntax for RDF as defined in the RDF Concepts and Abstract Syntax document, and an extension of Turtle to support representing a complete RDF Dataset." ;
+	rdfs:isDefinedBy <https://www.w3.org/TR/trig/> .
+
+iana-t:turtle a <StreamableRDFSerialization> ;
+	rdfs:label "Turtle" ;
+	rdfs:comment "The terse RDF Triple Language (Turtle) is a concrete syntax for RDF as defined in the RDF Concepts and Abstract Syntax W3C Recommendation." ;
+	rdfs:isDefinedBy <https://www.w3.org/TeamSubmission/turtle/> .
+
