@@ -12,4 +12,4 @@ curl -o modules/embeddings.ttl https://raw.githubusercontent.com/EnexaProject/en
 # CEL Train module
 curl -o modules/cel-train.ttl https://raw.githubusercontent.com/EnexaProject/enexa-cel-train-module/main/module.ttl
 # CEL service
-curl -o modules/cel-deploy.ttl https://raw.githubusercontent.com/EnexaProject/enexa-dice-embeddings/master/module.ttl
+curl -o modules/cel-deploy.ttl https://raw.githubusercontent.com/EnexaProject/enexa-cel-deploy-module/main/module.ttl

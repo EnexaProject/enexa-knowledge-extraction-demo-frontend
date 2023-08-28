@@ -1,3 +1,6 @@
+# modules directory that is created by a script in the project
+modules
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
