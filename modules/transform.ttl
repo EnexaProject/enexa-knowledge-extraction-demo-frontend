@@ -25,34 +25,50 @@
 <parameter/outputMediaType> a alg:Parameter ;
 	rdfs:label "Output format" ;
 	rdfs:comment "The format of the output dataset." ;	
-	rdfs:range <StreamableRDFSerialization> .
+	rdfs:range <KGSerialization> .
 
 <result/output> a alg:Result ;
 	rdfs:label "Output dataset" ;
 	rdfs:comment "The output dataset that is created as result of the transformation." ;
 	rdfs:range prov:Entity .
 
-<StreamableRDFSerialization> a owl:Class ;
-	rdfs:label "stream-able RDF serializations" ;
-	rdfs:comment "The class of RDF serializations that can be streamed and, hence, are supported as output format by the ENEXA transformator module." .
+<KGSerialization> a owl:Class ;
+	rdfs:subClassOf <KGSerialization> ;
+	rdfs:label "knowledge graph serializations" ;
+	rdfs:comment "The class of knowledge graph serializations supported by the ENEXA transformator module." .
 
-iana-a:n-quads a <StreamableRDFSerialization> ;
+<StreamableRDFSerialization> a owl:Class ;
+	rdfs:subClassOf <KGSerialization> ;
+	rdfs:label "stream-able RDF serializations" ;
+	rdfs:comment "The class of RDF serializations that can be streamed and, hence, are easier to handle as output format by the ENEXA transformator module." .
+
+iana-a:n-quads a <KGSerialization>, <StreamableRDFSerialization> ;
 	rdfs:label "N-Quads" ;
 	rdfs:comment "N-Quads is a line-based, plain text format for encoding an RDF dataset." ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/n-quads/> .
 	
-iana-a:n-triples a <StreamableRDFSerialization> ;
+iana-a:n-triples a <KGSerialization>, <StreamableRDFSerialization> ;
 	rdfs:label "N-Triples" ;
 	rdfs:comment "N-Triples is a line-based, plain text format for encoding an RDF graph." ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/n-triples/> .
 
-iana-a:trig a <StreamableRDFSerialization> ;
+iana-a:trig a <KGSerialization>, <StreamableRDFSerialization> ;
 	rdfs:label "TriG" ;
 	rdfs:comment "TriG is a concrete syntax for RDF as defined in the RDF Concepts and Abstract Syntax document, and an extension of Turtle to support representing a complete RDF Dataset." ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/trig/> .
 
-iana-t:turtle a <StreamableRDFSerialization> ;
+iana-t:turtle a <KGSerialization>, <StreamableRDFSerialization> ;
 	rdfs:label "Turtle" ;
 	rdfs:comment "The terse RDF Triple Language (Turtle) is a concrete syntax for RDF as defined in the RDF Concepts and Abstract Syntax W3C Recommendation." ;
 	rdfs:isDefinedBy <https://www.w3.org/TeamSubmission/turtle/> .
+
+<https://www.iana.org/assignments/media-types/application/owl+xml> a <KGSerialization>, <StreamableRDFSerialization> ;
+	rdfs:label "OWL/XML" ;
+	rdfs:comment "The XML serialization for OWL 2 Web Ontology Language that mirrors its structural specification." ;
+	rdfs:isDefinedBy <http://www.w3.org/TR/owl2-xml-serialization/> .
+
+iana-t:owl-manchester a <KGSerialization>, <StreamableRDFSerialization> ;
+	rdfs:label "Manchester Syntax" ;
+	rdfs:comment "The Manchester syntax is a user-friendly compact syntax for OWL 2 ontologies." ;
+	rdfs:isDefinedBy <https://www.w3.org/TR/owl2-manchester-syntax/> .
 

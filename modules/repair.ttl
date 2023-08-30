@@ -1,0 +1,33 @@
+# Don't change this file! It is generated based on module.ttl.template.
+@base           <http://w3id.org/dice-research/enexa/module/kg-fixing/> .
+@prefix alg:    <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+@prefix dcat:   <http://www.w3.org/ns/dcat#> .
+@prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+@prefix iana-a: <https://www.iana.org/assignments/media-types/application/> .
+@prefix iana-t: <https://www.iana.org/assignments/media-types/text/> .
+@prefix hobbit: <http://w3id.org/hobbit/vocab#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+<1.0.0> a enexa:Module ;
+	rdfs:label "ENEXA Knowledge Graph repair module"@en ;
+	rdfs:comment "This module detects and repairs inconsistencies in the given knowledge graph."@en ;
+	hobbit:image <urn:container:docker:image:hub.cs.upb.de/enexa/images/enexa-kg-fixing-module:1.0.0> ;
+	alg:parameter <parameter/a-boxFile>, <parameter/t-boxFile> ;
+	alg:produces <result/fixedKG> .
+
+<parameter/a-boxFile> a alg:Parameter ;
+	rdfs:label "A-Box" ;
+	rdfs:comment "A ttl file containing the A-Box of the knowledge graph." .
+
+<parameter/t-boxFile> a alg:Parameter ;
+	rdfs:label "T-Box" ;
+	rdfs:comment "A ttl file containing the T-Box of the knowledge graph." .
+
+<result/fixedKG> a alg:Result ;
+	rdfs:label "Fixed KG file" ;
+	rdfs:comment "The file containing the fixed knowledge graph." ;
+	rdfs:range prov:Entity .
+

@@ -1,0 +1,31 @@
+# Don't change this file! It is generated based on module.ttl.template.
+@base           <http://w3id.org/dice-research/enexa/module/cel-train/> .
+@prefix alg:    <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+@prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+@prefix hobbit: <http://w3id.org/hobbit/vocab#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+<1.0.0> a enexa:Module ;
+	rdfs:label "ENEXA Class Expression Learning Training Module"@en ;
+	rdfs:comment "This module allows the training of a model (heuristics) that supports the Class Expression Learning."@en ;
+	hobbit:image <urn:container:docker:image:hub.cs.upb.de/enexa/images/enexa-cel-train-module:1.0.0> ;
+	alg:parameter <parameter/kg>, <parameter/kge> ;
+	alg:produces <result/heuristics> .
+
+<parameter/kg> a alg:Parameter ;
+	rdfs:label "knowledge graph" ;
+	rdfs:comment "The knowledge graph on which class expression learning should be trained." .
+
+<parameter/kge> a alg:Parameter ;
+	rdfs:label "knowledge graph embedding model" ;
+	rdfs:comment "The knowledge graph embedding model for the given knowledge graph." .
+
+<result/heuristics> a alg:Result ;
+	rdfs:label "class expression learning heuristics" ;
+	rdfs:comment "Collected ehuristics needed for class expression learning." ;
+	rdfs:range prov:Entity .
+
+
