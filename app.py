@@ -816,8 +816,8 @@ def start_embeddings_transform_step(experiment_resource, iri_from_last_step):
                 transformed_file_iri = extract_X_from_triplestore("http://w3id.org/dice-research/enexa/module/transform/result/output",META_DATA_ENDPOINT, META_DATA_GRAPH_NAME,
                                                                        transform_step_module_instance_iri)
 
-                start_embedding_data_preprocess(experiment_resource, transformed_file_iri)
-                #start_embeddings_step(experiment_resource, transformed_file_iri)
+                #start_embedding_data_preprocess(experiment_resource, transformed_file_iri)
+                start_embeddings_step(experiment_resource, transformed_file_iri)
 
 
 def start_embedding_data_preprocess(experiment_resource, not_processed_data_iri):
