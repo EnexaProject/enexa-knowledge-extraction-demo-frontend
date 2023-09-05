@@ -151,9 +151,9 @@ def start_cel_service_module(experiment_resource, owl_file_iri, embedding_csv_ir
         [] rdf:type enexa:ModuleInstance ;
         enexa:experiment <{}> ;
         alg:instanceOf <http://w3id.org/dice-research/enexa/module/cel-deploy/1.0.0> ;
-        <http://w3id.org/dice-research/enexa/module/cel-train/parameter/kg> <{}>;
-        <http://w3id.org/dice-research/enexa/module/cel-train/parameter/kge> <{}>;
-        <http://w3id.org/dice-research/enexa/module/cel-train/parameter/heuristics> <{}>.
+        <http://w3id.org/dice-research/enexa/module/cel-deploy/parameter/kg> <{}>;
+        <http://w3id.org/dice-research/enexa/module/cel-deploy/parameter/kge> <{}>;
+        <http://w3id.org/dice-research/enexa/module/cel-deploy/parameter/heuristics> <{}>.
         """.format(experiment_resource, owl_file_iri, embedding_csv_iri,cel_trained_file_kge_iri)
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
@@ -573,7 +573,7 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
 
 
 def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_file_kge_iri):
-    st.info("starting cel service")
+    st.info("starting cel service"+"experiment_resource :"+experiment_resource+"owl_file_iri :" +owl_file_iri+"embedding_csv_iri :"+ embedding_csv_iri+"cel_trained_file_kge_iri:"+ cel_trained_file_kge_iri)
     print("starting cel service"+"experiment_resource :"+experiment_resource+"owl_file_iri :" +owl_file_iri+"embedding_csv_iri :"+ embedding_csv_iri+"cel_trained_file_kge_iri:"+ cel_trained_file_kge_iri)
     cel_service_experiment_data = create_experiment_data()
     cel_service_experiment_resource = cel_service_experiment_data["experiment_iri"]
@@ -581,6 +581,7 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
     cel_service_relative_file_location_inside_enexa_dir = cel_service_experiment_directory
 
     response_cel_step = start_cel_service_module(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_file_kge_iri)
+    st.success("DONE!!!!!")
 
 
 def start_cel_step(experiment_resource, owl_file_iri):
@@ -1087,32 +1088,34 @@ if uploaded_files is not None and uploaded_files != []:
 
 # """)
 
-text_experiment_resource = st.text_input("experiment_resource", key="experiment_resource")
-
-text_module_instance_iri = st.text_input("module_instance_iri", key="module_instance_iri")
-
-if 'clicked' not in st.session_state:
-    st.session_state.clicked = False
-
-
-def click_button():
-    # start_repair_step("http://example.org/enexa/6b37c04c-1ef5-4a00-a3a2-c7a174ac3d3c", "http://example.org/enexa/ca47579f-bbd2-4ee6-b151-587a251f67c9")
-    start_embeddings_transform_step("http://example.org/enexa/6b37c04c-1ef5-4a00-a3a2-c7a174ac3d3c",
-                         "http://example.org/enexa/29c5dfb1-d857-4082-86e1-cff1bb8785a3")
-    # start_embeddings_step("http://example.org/enexa/6b37c04c-1ef5-4a00-a3a2-c7a174ac3d3c","http://example.org/enexa/7fd0c144-86b9-4bd1-9a8b-e13f415ef0b6")
-
-
-st.button('Click me', on_click=click_button)
-
-def test2():
-    transformed_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
-                                                           META_DATA_GRAPH_NAME,
-                                                           "http://example.org/enexa/e31c63ef-1f13-4bbc-8bcc-505b4930ec6d")
-
-st.button('test2', on_click=test2)
-
-
-def cel_transform_test():
-    transformed_file_iri = start_cel_transform_step(text_experiment_resource,text_module_instance_iri)
-
-st.button('cel_transform_test', on_click=cel_transform_test)
+# text_experiment_resource = st.text_input("experiment_resource", key="experiment_resource")
+# text_module_instance_iri = st.text_input("module_instance_iri", key="module_instance_iri")
+#
+#
+# def cel_transform_test():
+#     transformed_file_iri = start_cel_transform_step(text_experiment_resource, text_module_instance_iri)
+#
+#
+# st.button('cel_transform_test', on_click=cel_transform_test)
+#
+# if 'clicked' not in st.session_state:
+#     st.session_state.clicked = False
+#
+#
+# def click_button():
+#     # start_repair_step("http://example.org/enexa/6b37c04c-1ef5-4a00-a3a2-c7a174ac3d3c", "http://example.org/enexa/ca47579f-bbd2-4ee6-b151-587a251f67c9")
+#     start_embeddings_transform_step("http://example.org/enexa/6b37c04c-1ef5-4a00-a3a2-c7a174ac3d3c",
+#                          "http://example.org/enexa/29c5dfb1-d857-4082-86e1-cff1bb8785a3")
+#     # start_embeddings_step("http://example.org/enexa/6b37c04c-1ef5-4a00-a3a2-c7a174ac3d3c","http://example.org/enexa/7fd0c144-86b9-4bd1-9a8b-e13f415ef0b6")
+#
+#
+# st.button('Click me', on_click=click_button)
+#
+# def test2():
+#     transformed_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
+#                                                            META_DATA_GRAPH_NAME,
+#                                                            "http://example.org/enexa/e31c63ef-1f13-4bbc-8bcc-505b4930ec6d")
+#
+# st.button('test2', on_click=test2)
+#
+#
