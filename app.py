@@ -169,9 +169,9 @@ def start_cel_service_module(experiment_resource, owl_file_iri, embedding_csv_ir
 
 def start_cel_module(experiment_resource, owl_file_iri, embedding_csv_iri):
     print("start_cel_module")
-    print("experiment_resource: " + experiment_resource)
-    print("owl_file_iri : "+owl_file_iri)
-    print("embedding_csv_iri : "+embedding_csv_iri)
+    print("experiment_resource: " + str(experiment_resource))
+    print("owl_file_iri : "+str(owl_file_iri))
+    print("embedding_csv_iri : "+str(embedding_csv_iri))
 
     start_module_message = """
     @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
@@ -505,7 +505,10 @@ def extract_embeddings_csv_from_triplestore(triple_store_endpoint, graph_name, e
     for result in results["results"]["bindings"]:
         returnIRI = result["iri"]["value"]
 
-    if returnIRI == "":
+    if returnIRI == None:
+        st.error(
+            "there is no iri in the triple store for <?moduleiri> <http://w3id.org/dice-research/enexa/module/dice-embeddings/result/entity_embeddings.csv> ?iri; \n <?moduleiri> <http://w3id.org/dice-research/enexa/ontology#experiment> <"+experiment_iri+">")
+    elif returnIRI == None:
         st.error(
             "there is no iri in the triple store for <?moduleiri> <http://w3id.org/dice-research/enexa/module/dice-embeddings/result/entity_embeddings.csv> ?iri; \n <?moduleiri> <http://w3id.org/dice-research/enexa/ontology#experiment> <"+experiment_iri+">")
     else:
@@ -765,6 +768,10 @@ def start_embeddings_transform_step(experiment_resource, iri_from_last_step):
             transform_experiment_resource,
             transform_relative_file_location_inside_enexa_dir,
             "wikidata5M-short.ttl.gz")
+        # wiki_data_5m_resource = add_module_configuration_to_enexa_service(
+        #     transform_experiment_resource,
+        #     transform_relative_file_location_inside_enexa_dir,
+        #     "wikidata5M.ttl.gz")
         if (wiki_data_5m_resource.status_code != 200):
             st.error(" can not add wikidata5m")
         else:
