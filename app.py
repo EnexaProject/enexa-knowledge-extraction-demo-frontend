@@ -51,6 +51,8 @@ print("EMBEDDINGS_DIM is:"+str(EMBEDDINGS_DIM))
 EMBEDDINGS_EPOCH_NUM = config("EMBEDDINGS_EPOCH_NUM", default=1, cast=int)
 print("EMBEDDINGS_EPOCH_NUM is :"+ str(EMBEDDINGS_EPOCH_NUM))
 
+DATASET_NAME = config("DATASET_NAME")
+print("DATASET_NAME is :"+ str(DATASET_NAME))
 # constants
 ENEXA_LOGO = "https://raw.githubusercontent.com/EnexaProject/enexaproject.github.io/main/images/enexacontent/enexa_logo_v0.png?raw=true"
 ENEXA_EXPERIMENT_SHARED_DIRECTORY_LITERAL = "http://w3id.org/dice-research/enexa/ontology#sharedDirectory"
@@ -768,7 +770,7 @@ def start_embeddings_transform_step(experiment_resource, iri_from_last_step):
         wiki_data_5m_resource = add_module_configuration_to_enexa_service(
             transform_experiment_resource,
             transform_relative_file_location_inside_enexa_dir,
-            "wikidata5M-short.ttl.gz")
+            DATASET_NAME)
         # wiki_data_5m_resource = add_module_configuration_to_enexa_service(
         #     transform_experiment_resource,
         #     transform_relative_file_location_inside_enexa_dir,
@@ -1073,14 +1075,20 @@ if uploaded_files is not None and uploaded_files != []:
                         "Module instance ({}) for the experiment ({}) finished successfully.".format(
                             module_instance_iri, experiment_resource))
 
-                    repair_step_button_pushed = False
-                    if not repair_step_button_pushed:
-                        if st.button("Start Repair Step"):
-                            # Call the function with the entered values
-                            st.info("start repairing step")
-                            st.markdown("<hr/>", unsafe_allow_html=True)
-                            repair_step_button_pushed = True
-                            start_repair_step(experiment_resource, module_instance_iri)
+                    # waiting = True
+                    # repair_step_button_pushed = False
+                    # if not repair_step_button_pushed:
+                    #     if st.button("Start Repair Step"):
+                    #         # Call the function with the entered values
+                    #         st.info("start repairing step")
+                    #         st.markdown("<hr/>", unsafe_allow_html=True)
+                    #         repair_step_button_pushed = True
+                    #         waiting = False
+                    # while waiting:
+                    #     time.sleep(1)
+
+                    start_repair_step(experiment_resource, module_instance_iri)
+
 
         # st.markdown("#### Upload (preliminary) T-Box data")
 
