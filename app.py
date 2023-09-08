@@ -19,6 +19,7 @@ from rdflib import Graph
 from SPARQLWrapper import SPARQLWrapper
 
 
+
 logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
@@ -878,6 +879,7 @@ def start_embedding_data_preprocess(experiment_resource, not_processed_data_iri)
         start_embeddings_step(experiment_resource, processed_file_iri)
         #start_embeddings_transform_step(experiment_resource, processed_file_iri)
 
+@st.cache
 def start_repair_step(experiment_resource, module_instance_id):
     st.info("starting second step")
 
@@ -1051,7 +1053,9 @@ if uploaded_files is not None and uploaded_files != []:
                     # Store the text of the info box in the session state
                     st.session_state[
                         "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-                    st.info(st.session_state["info_box_text"])
+                    # Create a text element
+                    progress_element_1 = st.empty()
+                    progress_element_1.text("starting module")
 
                     # ask for status of the module instance until it is finished
                     elapsedTime = SLEEP_IN_SECONDS
@@ -1062,13 +1066,21 @@ if uploaded_files is not None and uploaded_files != []:
                         time.sleep(SLEEP_IN_SECONDS)
                         elapsedTime = elapsedTime + SLEEP_IN_SECONDS
                         # Update the text of the info box in the session state
-                        st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+                        progress_element_1.text("Waiting for result ({} sec) ... ".format(elapsedTime))
 
+                    progress_element_1.text("result is ready . elapsed time is ({} sec) ".format(elapsedTime))
                     st.success(
                         "Module instance ({}) for the experiment ({}) finished successfully.".format(
                             module_instance_iri, experiment_resource))
 
-                    start_repair_step(experiment_resource, module_instance_iri)
+                    repair_step_button_pushed = False
+                    if not repair_step_button_pushed:
+                        if st.button("Start Repair Step"):
+                            # Call the function with the entered values
+                            st.info("start repairing step")
+                            st.markdown("<hr/>", unsafe_allow_html=True)
+                            repair_step_button_pushed = True
+                            start_repair_step(experiment_resource, module_instance_iri)
 
         # st.markdown("#### Upload (preliminary) T-Box data")
 
