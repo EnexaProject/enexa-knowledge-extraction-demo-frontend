@@ -608,9 +608,15 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
     cel_service_experiment_directory = cel_service_experiment_data["experiment_folder"]
     cel_service_relative_file_location_inside_enexa_dir = cel_service_experiment_directory
 
-    response_cel_step = start_cel_service_module(experiment_resource, owl_file_iri, embedding_csv_iri,
+    response_cel_step_deployed = start_cel_service_module(experiment_resource, owl_file_iri, embedding_csv_iri,
                                                  cel_trained_file_kge_iri)
-    st.success("DONE!!!!!")
+    container_id_cel_step_deployed = extract_X_from_turtle(response_cel_step_deployed.text,
+                                                  "http://w3id.org/dice-research/enexa/ontology#containerId")
+    st.info("container_id_embeddings_step is : " + container_id_cel_step_deployed)
+
+    #TODO send request here
+
+    print_container_logs(container_id_cel_step_deployed)
 
 
 def start_cel_step(experiment_resource, owl_file_iri):
@@ -635,32 +641,10 @@ def start_cel_step(experiment_resource, owl_file_iri):
         st.info("cel_step_module_instance_iri is :" + cel_step_module_instance_iri)
         st.info("experiment_resource is :" + experiment_resource)
 
-        response_check_module_instance_status = get_the_status(SERVER_ENDPOINT, cel_step_module_instance_iri,
-                                                               experiment_resource)
-
-        st.info("response_check_module_instance_status code" + str(
-            response_check_module_instance_status.status_code))
-
-        # Store the text of the info box in the session state
-        st.session_state[
-            "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-        st.info(st.session_state["info_box_text"])
-
-        # ask for status of the module instance until it is finished
-        elapsedTime = SLEEP_IN_SECONDS
-        while "exited" not in response_check_module_instance_status.text:
-            response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                   cel_step_module_instance_iri,
-                                                                   experiment_resource)
-            time.sleep(SLEEP_IN_SECONDS)
-            elapsedTime = elapsedTime + SLEEP_IN_SECONDS
-            # Update the text of the info box in the session state
-            st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
-
-        st.success(
-            "Module instance ({}) for the experiment ({}) finished successfully.".format(
-                cel_step_module_instance_iri,
-                experiment_resource))
+        container_id_cel_step = extract_X_from_turtle(response_cel_step.text,
+                                                             "http://w3id.org/dice-research/enexa/ontology#containerId")
+        st.info("container_id_embeddings_step is : " + container_id_cel_step)
+        print_container_logs(container_id_cel_step)
 
         cel_trained_file_kge_iri = extract_cel_trained_kge_from_triplestore(META_DATA_ENDPOINT,
                                                                             META_DATA_GRAPH_NAME,
@@ -673,9 +657,9 @@ def start_cel_transform_step(experiment_resource, iri_nt_file_from_step_transfor
     # transform nt file to owl
     st.info("starting cel transform step")
     cel_transform_experiment_data = create_experiment_data()
-    cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
+    # cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
     cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
-    cel_transform_relative_file_location_inside_enexa_dir = cel_transform_experiment_directory
+    # cel_transform_relative_file_location_inside_enexa_dir = cel_transform_experiment_directory
     response_transform_step = start_cel_transform_module(experiment_resource, iri_nt_file_from_step_transform_embedding)
     if (response_transform_step.status_code != 200):
         st.error("wrror in running cel transform module")
@@ -712,10 +696,6 @@ def start_cel_transform_step(experiment_resource, iri_nt_file_from_step_transfor
             # Update the text of the info box in the session state
             st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
 
-        st.success(
-            "Module instance ({}) for the experiment ({}) finished successfully.".format(
-                cel_transform_step_module_instance_iri,
-                experiment_resource))
         # TODO SHOULD NOT BE HARDCODED
         owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
                                                        META_DATA_GRAPH_NAME,
@@ -726,9 +706,9 @@ def start_cel_transform_step(experiment_resource, iri_nt_file_from_step_transfor
 def start_embeddings_step(experiment_resource, iri_nt_file_from_preprocess_embedding):
     st.info("starting embeding step")
     embeddings_experiment_data = create_experiment_data()
-    embeddings_experiment_resource = embeddings_experiment_data["experiment_iri"]
+    # embeddings_experiment_resource = embeddings_experiment_data["experiment_iri"]
     embeddings_experiment_directory = embeddings_experiment_data["experiment_folder"]
-    embeddings_relative_file_location_inside_enexa_dir = embeddings_experiment_directory
+    # embeddings_relative_file_location_inside_enexa_dir = embeddings_experiment_directory
     # add ontology
     response_embeddings_step = start_embeddings_module(experiment_resource, iri_nt_file_from_preprocess_embedding)
     if (response_embeddings_step.status_code != 200):
@@ -746,24 +726,15 @@ def start_embeddings_step(experiment_resource, iri_nt_file_from_preprocess_embed
         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT, embeddings_step_module_instance_iri,
                                                                experiment_resource)
 
-        st.info("response_check_module_instance_status code" + str(
-            response_check_module_instance_status.status_code))
+        # st.info("response_check_module_instance_status code" + str(
+        #     response_check_module_instance_status.status_code))
 
         # Store the text of the info box in the session state
-        st.session_state[
-            "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-        st.info(st.session_state["info_box_text"])
 
-        # ask for status of the module instance until it is finished
-        elapsedTime = SLEEP_IN_SECONDS
-        while "exited" not in response_check_module_instance_status.text:
-            response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                   embeddings_step_module_instance_iri,
-                                                                   experiment_resource)
-            time.sleep(SLEEP_IN_SECONDS)
-            elapsedTime = elapsedTime + SLEEP_IN_SECONDS
-            # Update the text of the info box in the session state
-            st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+        container_id_embeddings_step = extract_X_from_turtle(response_embeddings_step.text,
+                                                           "http://w3id.org/dice-research/enexa/ontology#containerId")
+        st.info("container_id_embeddings_step is : " + container_id_embeddings_step)
+        print_container_logs(container_id_embeddings_step)
 
         st.success(
             "Module instance ({}) for the experiment ({}) finished successfully.".format(
@@ -815,20 +786,19 @@ def start_embeddings_transform_step(experiment_resource, iri_from_last_step):
                 else:
                     print("No id found in JSON-LD")
                     st.error("No iri for the last module found")
-                st.info("transform_step_module_instance_iri is :" + transform_step_module_instance_iri)
-                st.info("experiment_resource is :" + experiment_resource)
+                # st.info("transform_step_module_instance_iri is :" + transform_step_module_instance_iri)
+                # st.info("experiment_resource is :" + experiment_resource)
 
                 response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
                                                                        transform_step_module_instance_iri,
                                                                        experiment_resource)
 
-                st.info("response_check_module_instance_status code" + str(
-                    response_check_module_instance_status.status_code))
+                # st.info("response_check_module_instance_status code" + str(response_check_module_instance_status.status_code))
 
                 # Store the text of the info box in the session state
-                st.session_state[
-                    "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-                st.info(st.session_state["info_box_text"])
+                # st.session_state[
+                #     "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
+                # st.info(st.session_state["info_box_text"])
 
                 # ask for status of the module instance until it is finished
                 elapsedTime = SLEEP_IN_SECONDS
@@ -842,10 +812,10 @@ def start_embeddings_transform_step(experiment_resource, iri_from_last_step):
                     # Update the text of the info box in the session state
                     st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
 
-                st.success(
-                    "Module instance ({}) for the experiment ({}) finished successfully.".format(
-                        transform_step_module_instance_iri,
-                        experiment_resource))
+                # st.success(
+                #     "Module instance ({}) for the experiment ({}) finished successfully.".format(
+                #         transform_step_module_instance_iri,
+                #         experiment_resource))
                 # TODO SHOULD NOT BE HARDCODED
                 # transformed_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,META_DATA_GRAPH_NAME, transform_step_module_instance_iri)
                 transformed_file_iri = extract_X_from_triplestore(
@@ -919,12 +889,12 @@ def start_repair_step(experiment_resource, module_instance_id):
     second_step_relative_file_location_inside_enexa_dir = second_step_experiment_directory
     # second_step_configFile_resource = ""
 
-    st.info("experiment_resource : " + experiment_resource)
-    st.info("module_instance_id : " + module_instance_id)
-    st.info("second_step_experiment_resource: " + second_step_experiment_resource)
-    st.info("second_step_experiment_directory : " + second_step_experiment_directory)
-    st.info(
-        "second_step_relative_file_location_inside_enexa_dir : " + second_step_relative_file_location_inside_enexa_dir)
+    # st.info("experiment_resource : " + experiment_resource)
+    # st.info("module_instance_id : " + module_instance_id)
+    # st.info("second_step_experiment_resource: " + second_step_experiment_resource)
+    # st.info("second_step_experiment_directory : " + second_step_experiment_directory)
+    # st.info(
+    #     "second_step_relative_file_location_inside_enexa_dir : " + second_step_relative_file_location_inside_enexa_dir)
 
     second_step_responce_configFile_resource = add_module_configuration_to_enexa_service(
         second_step_experiment_resource,
@@ -937,7 +907,7 @@ def start_repair_step(experiment_resource, module_instance_id):
 
         uploadedFileId = extract_id_from_turtle(second_step_responce_configFile_resource.text)
 
-        st.info("uploadedFileId " + uploadedFileId)
+        # st.info("uploadedFileId " + uploadedFileId)
 
         response_second_step = start_kg_fixing_module(experiment_resource, module_instance_id, uploadedFileId)
 
@@ -952,26 +922,10 @@ def start_repair_step(experiment_resource, module_instance_id):
             st.info("module_instance_id is :" + second_step_module_instance_iri)
             st.info("experiment_resource is :" + experiment_resource)
 
-            response_check_module_instance_status = get_the_status(SERVER_ENDPOINT, second_step_module_instance_iri,
-                                                                   experiment_resource)
-
-            st.info(
-                "response_check_module_instance_status code" + str(response_check_module_instance_status.status_code))
-
-            # Store the text of the info box in the session state
-            st.session_state[
-                "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-            st.info(st.session_state["info_box_text"])
-
-            # ask for status of the module instance until it is finished
-            elapsedTime = SLEEP_IN_SECONDS
-            while "exited" not in response_check_module_instance_status.text:
-                response_check_module_instance_status = get_the_status(SERVER_ENDPOINT, second_step_module_instance_iri,
-                                                                       experiment_resource)
-                time.sleep(SLEEP_IN_SECONDS)
-                elapsedTime = elapsedTime + SLEEP_IN_SECONDS
-                # Update the text of the info box in the session state
-                st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+            container_id_fixing_module = extract_X_from_turtle(response_second_step.text,
+                                                 "http://w3id.org/dice-research/enexa/ontology#containerId")
+            st.info("container_id_fixing_module is : " + container_id_fixing_module)
+            print_container_logs(container_id_fixing_module)
 
             st.success(
                 "Module instance ({}) for the experiment ({}) finished successfully.".format(
@@ -985,17 +939,17 @@ def start_repair_step(experiment_resource, module_instance_id):
             # start_embedding_data_preprocess(experiment_resource, repaired_A_box_iri)
 
 
-def get_container_logs(container_id):
-    with st.expander:
-        try:
-            client = docker.from_env()
-            container = client.containers.get(container_id)
+def print_container_logs(container_id):
+    try:
+        client = docker.from_env()
+        container = client.containers.get(container_id)
+        with st.expander("logs for this container :"+str(container_id)):
             for log_line in container.logs(stream=True):
                 st.text(log_line.decode("utf-8"))
-        except docker.errors.NotFound:
-            st.error("Container with ID " + str(container_id) + " not found.")
-        except Exception as e:
-            st.error("An error occurred: " + str(e))
+    except docker.errors.NotFound:
+        st.error("Container with ID " + str(container_id) + " not found.")
+    except Exception as e:
+        st.error("An error occurred: " + str(e))
 
 
 def get_the_status(SERVER_ENDPOINT, module_instance_iri, experiment_resource):
@@ -1080,7 +1034,7 @@ if uploaded_files is not None and uploaded_files != []:
                     container_id = extract_X_from_turtle(response_start_module.text,
                                                          "http://w3id.org/dice-research/enexa/ontology#containerId")
                     st.info("container_id is : " + container_id)
-                    get_container_logs(container_id)
+                    print_container_logs(container_id)
 
                     if module_instance_iri:
                         print("id:", module_instance_iri)
