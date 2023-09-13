@@ -4,3 +4,4 @@ rdflib==7.0.0
 requests==2.31.0
 streamlit==1.25.0
 sparqlwrapper==2.0.0
+docker==6.1.3
