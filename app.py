@@ -1086,8 +1086,11 @@ if uploaded_files is not None and uploaded_files != []:
                     #         waiting = False
                     # while waiting:
                     #     time.sleep(1)
-
-                    start_repair_step(experiment_resource, module_instance_iri)
+                    extracted_file_iri = extract_X_from_triplestore(
+                            "http://w3id.org/dice-research/enexa/module/extraction/result/triples", META_DATA_ENDPOINT,
+                            META_DATA_GRAPH_NAME,
+                            module_instance_iri)
+                    start_repair_step(experiment_resource, extracted_file_iri)
 
         # st.markdown("#### Upload (preliminary) T-Box data")
 
