@@ -6,7 +6,7 @@ curl -o modules/repair.ttl https://raw.githubusercontent.com/EnexaProject/enexa-
 # Transformation module
 curl -o modules/transform.ttl https://raw.githubusercontent.com/EnexaProject/enexa-transform-module/main/module.ttl
 # Tentris service
-# TODO curl -o modules/tentris.ttl
+curl -o modules/tentris.ttl https://raw.githubusercontent.com/EnexaProject/enexa-tentris-module/main/module.ttl
 # DICE Embeddings module
 curl -o modules/embeddings.ttl https://raw.githubusercontent.com/EnexaProject/enexa-dice-embeddings/master/module.ttl
 # CEL Train module
