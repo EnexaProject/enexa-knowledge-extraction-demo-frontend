@@ -51,9 +51,6 @@ print("EMBEDDINGS_EPOCH_NUM is :" + str(EMBEDDINGS_EPOCH_NUM))
 DATASET_NAME = config("DATASET_NAME")
 print("DATASET_NAME is :" + str(DATASET_NAME))
 
-PRE_GENERATED_EMBEDDING_CSV_IRI = config("PRE_GENERATED_EMBEDDING_CSV_IRI")
-print("PRE_GENERATED_EMBEDDING_CSV_IRI is :" + str(PRE_GENERATED_EMBEDDING_CSV_IRI))
-
 # constants
 ENEXA_LOGO = "https://raw.githubusercontent.com/EnexaProject/enexaproject.github.io/main/images/enexacontent/enexa_logo_v0.png?raw=true"
 ENEXA_EXPERIMENT_SHARED_DIRECTORY_LITERAL = "http://w3id.org/dice-research/enexa/ontology#sharedDirectory"
@@ -633,8 +630,8 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
     }
 
     data = {
-        "positives": ["http://www.biopax.org/examples/glycolysis#complex265"],
-        "negatives": ["http://www.biopax.org/examples/glycolysis#complex191"]
+        "positives": ["https://www.wikidata.org/wiki/Q9401", "https://www.wikidata.org/wiki/Q152051"],
+        "negatives": ["https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q234021", "https://www.wikidata.org/wiki/Q659379"]
     }
 
     response = requests.post(url, headers=headers, data=json.dumps(data))
@@ -700,58 +697,74 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri):
     cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
     cel_transform_relative_file_location_inside_enexa_dir = cel_transform_experiment_directory
 
+    #add reduced kg as owl file w5M-rdf-1.owl
+    st.info("use w5M-rdf-1.owl as kg file")
     # add wikidata5m
-    responce_add_wikidata5m = add_module_configuration_to_enexa_service(
+    responce_add_reduced_owl_file = add_module_configuration_to_enexa_service(
         cel_transform_experiment_resource,
         cel_transform_relative_file_location_inside_enexa_dir,
-        DATASET_NAME)
-    if (responce_add_wikidata5m.status_code != 200):
+        "w5M-rdf-1.owl")
+    if (responce_add_reduced_owl_file.status_code != 200):
         st.error("cannot add file: " + DATASET_NAME)
     else:
-        st.info("file add " + responce_add_wikidata5m.text + " ")
+        st.info("file add " + responce_add_reduced_owl_file.text + " ")
 
-        wikidata5m_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
-        response_transform_step = start_cel_transform_module(experiment_resource, repaired_abox_iri, wikidata5m_iri)
-        if (response_transform_step.status_code != 200):
-            st.error("error in running cel transform module")
-        else:
-            cel_transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
-            if cel_transform_step_module_instance_iri:
-                print("id:", cel_transform_step_module_instance_iri)
-            else:
-                print("No id found in JSON-LD")
-                st.error("No iri for the last module found")
-            st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
-            st.info("experiment_resource is :" + experiment_resource)
+        owl_file_iri = extract_id_from_turtle(responce_add_reduced_owl_file.text)
+        start_cel_step(experiment_resource, owl_file_iri)
 
-            response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                   cel_transform_step_module_instance_iri,
-                                                                   experiment_resource)
 
-            st.info("response_check_module_instance_status code" + str(
-                response_check_module_instance_status.status_code))
-
-            # Store the text of the info box in the session state
-            st.session_state[
-                "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-            st.info(st.session_state["info_box_text"])
-
-            # ask for status of the module instance until it is finished
-            elapsedTime = SLEEP_IN_SECONDS
-            while "exited" not in response_check_module_instance_status.text:
-                response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                       cel_transform_step_module_instance_iri,
-                                                                       experiment_resource)
-                time.sleep(SLEEP_IN_SECONDS)
-                elapsedTime = elapsedTime + SLEEP_IN_SECONDS
-                # Update the text of the info box in the session state
-                st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
-
-            # TODO SHOULD NOT BE HARDCODED
-            owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
-                                                           META_DATA_GRAPH_NAME,
-                                                           cel_transform_step_module_instance_iri)
-            start_cel_step(experiment_resource, owl_file_iri)
+    # # add wikidata5m
+    # responce_add_wikidata5m = add_module_configuration_to_enexa_service(
+    #     cel_transform_experiment_resource,
+    #     cel_transform_relative_file_location_inside_enexa_dir,
+    #     DATASET_NAME)
+    # if (responce_add_wikidata5m.status_code != 200):
+    #     st.error("cannot add file: " + DATASET_NAME)
+    # else:
+    #     st.info("file add " + responce_add_wikidata5m.text + " ")
+    #
+    #     wikidata5m_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
+    #     response_transform_step = start_cel_transform_module(experiment_resource, repaired_abox_iri, wikidata5m_iri)
+    #     if (response_transform_step.status_code != 200):
+    #         st.error("error in running cel transform module")
+    #     else:
+    #         cel_transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
+    #         if cel_transform_step_module_instance_iri:
+    #             print("id:", cel_transform_step_module_instance_iri)
+    #         else:
+    #             print("No id found in JSON-LD")
+    #             st.error("No iri for the last module found")
+    #         st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
+    #         st.info("experiment_resource is :" + experiment_resource)
+    #
+    #         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+    #                                                                cel_transform_step_module_instance_iri,
+    #                                                                experiment_resource)
+    #
+    #         st.info("response_check_module_instance_status code" + str(
+    #             response_check_module_instance_status.status_code))
+    #
+    #         # Store the text of the info box in the session state
+    #         st.session_state[
+    #             "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
+    #         st.info(st.session_state["info_box_text"])
+    #
+    #         # ask for status of the module instance until it is finished
+    #         elapsedTime = SLEEP_IN_SECONDS
+    #         while "exited" not in response_check_module_instance_status.text:
+    #             response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+    #                                                                    cel_transform_step_module_instance_iri,
+    #                                                                    experiment_resource)
+    #             time.sleep(SLEEP_IN_SECONDS)
+    #             elapsedTime = elapsedTime + SLEEP_IN_SECONDS
+    #             # Update the text of the info box in the session state
+    #             st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+    #
+    #         # TODO SHOULD NOT BE HARDCODED
+    #         owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
+    #                                                        META_DATA_GRAPH_NAME,
+    #                                                        cel_transform_step_module_instance_iri)
+    #         start_cel_step(experiment_resource, owl_file_iri)
 
 
 def start_embeddings_step(experiment_resource, iri_nt_file_from_preprocess_embedding):
