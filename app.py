@@ -523,25 +523,44 @@ def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_inst
     else:
         return returnIRI
 
-def run_query_triplestore(query_str, triple_store_endpoint):
+def run_query_triplestore_subject(query_str, triple_store_endpoint,s):
     g = Graph()
     # st.info("triple store endpoint is :"+triple_store_endpoint)
-    # sparql = SPARQLWrapper(triple_store_endpoint)
+    sparql = SPARQLWrapper(triple_store_endpoint)
+    print("query is :"+query_str)
+    print ("endpoint is :"+triple_store_endpoint)
     # st.info(query_str)
-    # sparql.setQuery(query_str)
-    # results = sparql.query().convert()
-    query_obj = prepareQuery(query_str)
-    st.info(str(query_obj))
+    sparql.setQuery(query_str)
+
+    #query_obj = prepareQuery(query_str)
+    #st.info(str(query_obj))
     #result = SPARQLResult(triple_store_endpoint, query_obj)
     #g += result
     # Use the query() method to execute the query against the endpoint
-    result = g.query(query_obj, initBindings={'triple_store_endpoint': triple_store_endpoint})
+    #result = g.query(query_obj, initBindings={'triple_store_endpoint': triple_store_endpoint})
+
+    # Set the result format to JSON
+    sparql.setReturnFormat('json')
+
+    # Execute the query and parse the results
+    results = sparql.query().convert()
 
     # Loop through the results and add them to the graph
-    for row in result:
-        g.add(row)
+    #for row in results:
+    #    g.add(row)
 
-    st.success("graph size is : " + str(len(g)))
+    #st.success("graph size is : " + str(len(g)))
+    #return g
+
+    for result in results["results"]["bindings"]:
+        subject = result["s"]["value"]
+        predicate = result["p"]["value"]
+        oobject = result["o"]["value"]
+        g.add((subject, predicate, oobject))
+
+    num_triples = len(g)
+
+    st.success("graph size is : " + str(num_triples))
     return g
 
 
@@ -873,16 +892,18 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed, "0.0.0.0:9080")
 
-        triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql?query="
+        triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
 
         all_iri = str("<https://www.wikidata.org/wiki/Q9401> <https://www.wikidata.org/wiki/Q152051> <https://www.wikidata.org/wiki/Q3895> <https://www.wikidata.org/wiki/Q234021> <https://www.wikidata.org/wiki/Q659379>")
 
-        query_str_first = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?s { "+all_iri+" }    ?s ?p ?o .}"
+        #query_str_first = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?s { "+all_iri+" }    ?s ?p ?o .}"
+        query_str_first = "SELECT ?p ?o WHERE {  <https://www.wikidata.org/wiki/Q9401> ?p ?o .} "
         print("first query " +query_str_first)
         st.info("first query " +query_str_first)
         firstpartGraph = run_query_triplestore(query_str_first, triple_store_endpoint)
 
-        query_str_second = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?o { "+all_iri+" }    ?s ?p ?o .}"
+        #query_str_second = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?o { "+all_iri+" }    ?s ?p ?o .}"
+        query_str_second = "SELECT ?s ?p WHERE {  ?s ?p <https://www.wikidata.org/wiki/Q9401> .}"
         print("second query " + query_str_second)
         st.info("second query " + query_str_second)
         secondpartGraph = run_query_triplestore(query_str_second, triple_store_endpoint)
