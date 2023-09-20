@@ -1,6 +1,8 @@
 import json
 
 import streamlit as st
+from rdflib.plugins.sparql import prepareQuery
+from rdflib.plugins.sparql.processor import SPARQLResult
 from streamlit.components.v1 import html
 
 from PIL import Image
@@ -12,6 +14,7 @@ import pprint
 import time
 import shutil
 import docker
+import uuid
 
 from decouple import config
 from rdflib import Graph
@@ -48,8 +51,8 @@ print("EMBEDDINGS_DIM is:" + str(EMBEDDINGS_DIM))
 EMBEDDINGS_EPOCH_NUM = config("EMBEDDINGS_EPOCH_NUM", default=1, cast=int)
 print("EMBEDDINGS_EPOCH_NUM is :" + str(EMBEDDINGS_EPOCH_NUM))
 
-DATASET_NAME = config("DATASET_NAME")
-print("DATASET_NAME is :" + str(DATASET_NAME))
+DATASET_NAME_TENTRIS = config("DATASET_NAME_TENTRIS")
+print("DATASET_NAME is :" + str(DATASET_NAME_TENTRIS))
 
 # constants
 ENEXA_LOGO = "https://raw.githubusercontent.com/EnexaProject/enexaproject.github.io/main/images/enexacontent/enexa_logo_v0.png?raw=true"
@@ -232,6 +235,29 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/transform/0.0.1> ;
                                           headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
     return response_start_module
 
+def start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri):
+    start_module_message = """
+    @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+    @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+    @prefix prov:   <http://www.w3.org/ns/prov#> .
+    @prefix hobbit: <http://w3id.org/hobbit/vocab#> . 
+    @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    [] rdf:type enexa:ModuleInstance ;
+    enexa:experiment <{}> ;
+    alg:instanceOf <http://w3id.org/dice-research/enexa/module/tentris/0.2.0-SNAPSHOT-1> ;
+    <http://w3id.org/dice-research/enexa/module/tentris/parameter/file> <{}>.
+    """.format(experiment_resource, wikidata5m_unfiltered_iri)
+
+    start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
+
+    with st.expander("Now, the ENEXA task will be started cel transform."):
+        st.code(start_module_message, language="turtle")
+        st.code(start_module_message_as_jsonld, language="json")
+
+    start_container_endpoint = SERVER_ENDPOINT + "/start-container"
+    response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
+                                          headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
+    return response_start_module
 
 def start_embedding_transform_module(experiment_resource, module_instance_id, ontologyIRI, wikidata5mIRI):
     print("start_embedding_transform_module")
@@ -440,6 +466,8 @@ print("uploaded file is :" + str(uploaded_files))
 
 
 def extract_X_from_turtle(turtle_text, x):
+    print("turtle_text is :"+str(turtle_text))
+    print("x is :"+str(x))
     graph = Graph()
     # Parse the Turtle file
     graph.parse(data=turtle_text, format="ttl")
@@ -494,6 +522,27 @@ def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_inst
             module_instance_iri)
     else:
         return returnIRI
+
+def run_query_triplestore(query_str, triple_store_endpoint):
+    g = Graph()
+    # st.info("triple store endpoint is :"+triple_store_endpoint)
+    # sparql = SPARQLWrapper(triple_store_endpoint)
+    # st.info(query_str)
+    # sparql.setQuery(query_str)
+    # results = sparql.query().convert()
+    query_obj = prepareQuery(query_str)
+    st.info(str(query_obj))
+    #result = SPARQLResult(triple_store_endpoint, query_obj)
+    #g += result
+    # Use the query() method to execute the query against the endpoint
+    result = g.query(query_obj, initBindings={'triple_store_endpoint': triple_store_endpoint})
+
+    # Loop through the results and add them to the graph
+    for row in result:
+        g.add(row)
+
+    st.success("graph size is : " + str(len(g)))
+    return g
 
 
 def extract_output_from_triplestore(triple_store_endpoint, graph_name, module_instance_iri):
@@ -560,6 +609,33 @@ def extract_cel_trained_kge_from_triplestore(triple_store_endpoint, graph_name, 
     else:
         return returnIRI
 
+
+def add_file_from_share_folder(experiment_resource,uploaded_filename):
+    print("add_module_configuration_to_enexa_service")
+    # copy the file in share directory
+    print("experiment_resource: " + experiment_resource)
+    print("uploaded_filename: " + uploaded_filename)
+
+    # add resource
+    ttl_for_registering_the_file_upload = """
+        @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+        @prefix prov:   <http://www.w3.org/ns/prov#> .
+
+        [] a prov:Entity ; 
+            enexa:experiment <{}> ; 
+            enexa:location "{}" .
+        """.format(experiment_resource, uploaded_filename)
+
+    ttl_for_registering_the_file_upload_as_jsonld = turtle_to_jsonld(ttl_for_registering_the_file_upload)
+
+    with st.expander("Show message for registering the file upload"):
+        st.code(ttl_for_registering_the_file_upload, language="turtle")
+        st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
+
+    response = requests.post(SERVER_ENDPOINT + "/add-resource", data=ttl_for_registering_the_file_upload_as_jsonld,
+                             headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
+    print("file added and the response is :" + str(response))
+    return response
 
 def add_module_configuration_to_enexa_service(experiment_resource, relative_file_location_inside_enexa_dir,
                                               uploaded_filename):
@@ -688,8 +764,7 @@ def start_cel_step(experiment_resource, owl_file_iri):
 
             start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_file_kge_iri)
 
-
-def start_cel_transform_step(experiment_resource, repaired_abox_iri):
+def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri):
     # transform nt file to owl
     st.info("starting cel transform step")
     cel_transform_experiment_data = create_experiment_data()
@@ -698,219 +773,49 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri):
     cel_transform_relative_file_location_inside_enexa_dir = cel_transform_experiment_directory
 
     #add reduced kg as owl file w5M-rdf-1.owl
-    st.info("use w5M-rdf-1.owl as kg file")
-    # add wikidata5m
-    responce_add_reduced_owl_file = add_module_configuration_to_enexa_service(
-        cel_transform_experiment_resource,
-        cel_transform_relative_file_location_inside_enexa_dir,
-        "w5M-rdf-1.owl")
-    if (responce_add_reduced_owl_file.status_code != 200):
-        st.error("cannot add file: " + DATASET_NAME)
-    else:
-        st.info("file add " + responce_add_reduced_owl_file.text + " ")
-
-        owl_file_iri = extract_id_from_turtle(responce_add_reduced_owl_file.text)
-        start_cel_step(experiment_resource, owl_file_iri)
-
-
+    # st.info("use w5M-rdf-1.owl as kg file")
     # # add wikidata5m
-    # responce_add_wikidata5m = add_module_configuration_to_enexa_service(
+    # responce_add_reduced_owl_file = add_module_configuration_to_enexa_service(
     #     cel_transform_experiment_resource,
     #     cel_transform_relative_file_location_inside_enexa_dir,
-    #     DATASET_NAME)
-    # if (responce_add_wikidata5m.status_code != 200):
+    #     "w5M-rdf-1.owl")
+    # if (responce_add_reduced_owl_file.status_code != 200):
     #     st.error("cannot add file: " + DATASET_NAME)
     # else:
-    #     st.info("file add " + responce_add_wikidata5m.text + " ")
+    #     st.info("file add " + responce_add_reduced_owl_file.text + " ")
     #
-    #     wikidata5m_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
-    #     response_transform_step = start_cel_transform_module(experiment_resource, repaired_abox_iri, wikidata5m_iri)
-    #     if (response_transform_step.status_code != 200):
-    #         st.error("error in running cel transform module")
-    #     else:
-    #         cel_transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
-    #         if cel_transform_step_module_instance_iri:
-    #             print("id:", cel_transform_step_module_instance_iri)
-    #         else:
-    #             print("No id found in JSON-LD")
-    #             st.error("No iri for the last module found")
-    #         st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
-    #         st.info("experiment_resource is :" + experiment_resource)
-    #
-    #         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-    #                                                                cel_transform_step_module_instance_iri,
-    #                                                                experiment_resource)
-    #
-    #         st.info("response_check_module_instance_status code" + str(
-    #             response_check_module_instance_status.status_code))
-    #
-    #         # Store the text of the info box in the session state
-    #         st.session_state[
-    #             "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-    #         st.info(st.session_state["info_box_text"])
-    #
-    #         # ask for status of the module instance until it is finished
-    #         elapsedTime = SLEEP_IN_SECONDS
-    #         while "exited" not in response_check_module_instance_status.text:
-    #             response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-    #                                                                    cel_transform_step_module_instance_iri,
-    #                                                                    experiment_resource)
-    #             time.sleep(SLEEP_IN_SECONDS)
-    #             elapsedTime = elapsedTime + SLEEP_IN_SECONDS
-    #             # Update the text of the info box in the session state
-    #             st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
-    #
-    #         # TODO SHOULD NOT BE HARDCODED
-    #         owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
-    #                                                        META_DATA_GRAPH_NAME,
-    #                                                        cel_transform_step_module_instance_iri)
-    #         start_cel_step(experiment_resource, owl_file_iri)
+    #     owl_file_iri = extract_id_from_turtle(responce_add_reduced_owl_file.text)
+    #     start_cel_step(experiment_resource, owl_file_iri)
 
 
-def start_embeddings_step(experiment_resource, iri_nt_file_from_preprocess_embedding):
-    st.info("starting embeding step")
-    embeddings_experiment_data = create_experiment_data()
-    # embeddings_experiment_resource = embeddings_experiment_data["experiment_iri"]
-    embeddings_experiment_directory = embeddings_experiment_data["experiment_folder"]
-    # embeddings_relative_file_location_inside_enexa_dir = embeddings_experiment_directory
-    # add ontology
-    response_embeddings_step = start_embeddings_module(experiment_resource, iri_nt_file_from_preprocess_embedding)
-    if (response_embeddings_step.status_code != 200):
-        st.error("wrror in running transform module")
+    # add wikidata5m
+    #responce_add_wikidata5m = add_module_configuration_to_enexa_service(
+    #    cel_transform_experiment_resource,
+    #    cel_transform_relative_file_location_inside_enexa_dir,
+    #    DATASET_NAME)
+    #if (responce_add_wikidata5m.status_code != 200):
+    #    st.error("cannot add file: " + DATASET_NAME)
+    #else:
+    #    st.info("file add " + responce_add_wikidata5m.text + " ")
+
+    #    wikidata5m_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
+    response_transform_step = start_cel_transform_module(experiment_resource, repaired_abox_iri, wikidata5m_iri)
+    if (response_transform_step.status_code != 200):
+        st.error("error in running cel transform module")
     else:
-        embeddings_step_module_instance_iri = extract_id_from_turtle(response_embeddings_step.text)
-        if embeddings_step_module_instance_iri:
-            print("id:", embeddings_step_module_instance_iri)
+        cel_transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
+        if cel_transform_step_module_instance_iri:
+            print("id:", cel_transform_step_module_instance_iri)
         else:
             print("No id found in JSON-LD")
             st.error("No iri for the last module found")
-        st.info("embeddings_step_module_instance_iri is :" + embeddings_step_module_instance_iri)
+        st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
         st.info("experiment_resource is :" + experiment_resource)
 
-        response_check_module_instance_status = get_the_status(SERVER_ENDPOINT, embeddings_step_module_instance_iri,
-                                                               experiment_resource)
-
-        # st.info("response_check_module_instance_status code" + str(
-        #     response_check_module_instance_status.status_code))
-
-        # Store the text of the info box in the session state
-
-        container_id_embeddings_step = extract_X_from_turtle(response_embeddings_step.text,
-                                                             "http://w3id.org/dice-research/enexa/ontology#containerId")
-        st.info("container_id_embeddings_step is : " + container_id_embeddings_step)
-        print_container_logs(container_id_embeddings_step)
-
-        st.success(
-            "Module instance ({}) for the experiment ({}) finished successfully.".format(
-                embeddings_step_module_instance_iri,
-                experiment_resource))
-
-        start_cel_transform_step(experiment_resource, iri_nt_file_from_preprocess_embedding)
-
-
-def start_embeddings_transform_step(experiment_resource, iri_from_last_step):
-    st.info("starting transform step")
-    transform_experiment_data = create_experiment_data()
-    transform_experiment_resource = transform_experiment_data["experiment_iri"]
-    transform_experiment_directory = transform_experiment_data["experiment_folder"]
-    transform_relative_file_location_inside_enexa_dir = transform_experiment_directory
-    # add ontology
-    transform_responce_ontology_resource = add_module_configuration_to_enexa_service(
-        transform_experiment_resource,
-        transform_relative_file_location_inside_enexa_dir,
-        "1-ontology_version_1.ttl")
-
-    if (transform_responce_ontology_resource.status_code != 200):
-        st.error("can not add ontology file ")
-    else:
-        # add wikipedia
-        # add ontology
-        wiki_data_5m_resource = add_module_configuration_to_enexa_service(
-            transform_experiment_resource,
-            transform_relative_file_location_inside_enexa_dir,
-            DATASET_NAME)
-        # wiki_data_5m_resource = add_module_configuration_to_enexa_service(
-        #     transform_experiment_resource,
-        #     transform_relative_file_location_inside_enexa_dir,
-        #     "wikidata5M.ttl.gz")
-        if (wiki_data_5m_resource.status_code != 200):
-            st.error(" can not add wikidata5m")
-        else:
-            ontologyIRI = extract_id_from_turtle(transform_responce_ontology_resource.text)
-            wikidata5mIRI = extract_id_from_turtle(wiki_data_5m_resource.text)
-            response_transform_step = start_embedding_transform_module(experiment_resource, iri_from_last_step,
-                                                                       ontologyIRI,
-                                                                       wikidata5mIRI)
-            if (response_transform_step.status_code != 200):
-                st.error("wrror in running transform module")
-            else:
-                transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
-                if transform_step_module_instance_iri:
-                    print("id:", transform_step_module_instance_iri)
-                else:
-                    print("No id found in JSON-LD")
-                    st.error("No iri for the last module found")
-                # st.info("transform_step_module_instance_iri is :" + transform_step_module_instance_iri)
-                # st.info("experiment_resource is :" + experiment_resource)
-
-                response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                       transform_step_module_instance_iri,
-                                                                       experiment_resource)
-
-                # st.info("response_check_module_instance_status code" + str(response_check_module_instance_status.status_code))
-
-                # Store the text of the info box in the session state
-                # st.session_state[
-                #     "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-                # st.info(st.session_state["info_box_text"])
-
-                # ask for status of the module instance until it is finished
-                elapsedTime = SLEEP_IN_SECONDS
-                while "exited" not in response_check_module_instance_status.text:
-                    response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                           transform_step_module_instance_iri,
-                                                                           experiment_resource)
-
-                    time.sleep(SLEEP_IN_SECONDS)
-                    elapsedTime = elapsedTime + SLEEP_IN_SECONDS
-                    # Update the text of the info box in the session state
-                    st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
-
-                # st.success(
-                #     "Module instance ({}) for the experiment ({}) finished successfully.".format(
-                #         transform_step_module_instance_iri,
-                #         experiment_resource))
-                # TODO SHOULD NOT BE HARDCODED
-                # transformed_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,META_DATA_GRAPH_NAME, transform_step_module_instance_iri)
-                transformed_file_iri = extract_X_from_triplestore(
-                    "http://w3id.org/dice-research/enexa/module/transform/result/output", META_DATA_ENDPOINT,
-                    META_DATA_GRAPH_NAME,
-                    transform_step_module_instance_iri)
-
-                # start_embedding_data_preprocess(experiment_resource, transformed_file_iri)
-                start_embeddings_step(experiment_resource, transformed_file_iri)
-
-
-def start_embedding_data_preprocess(experiment_resource, not_processed_data_iri):
-    st.info("starting preprocess step" + str(experiment_resource) + " " + str(not_processed_data_iri))
-    embedding_preproc_experiment_data = create_experiment_data()
-    embedding_preproc_experiment_resource = embedding_preproc_experiment_data["experiment_iri"]
-    embedding_preproc_experiment_directory = embedding_preproc_experiment_data["experiment_folder"]
-    embedding_preproc_relative_file_location_inside_enexa_dir = embedding_preproc_experiment_directory
-    responce_embedding_preproc_step = start_preprocess_module(experiment_resource, not_processed_data_iri)
-    if (responce_embedding_preproc_step.status_code != 200):
-        st.error("error in preprocess data")
-    else:
-        embedding_preproc_step_module_instance_iri = extract_id_from_turtle(responce_embedding_preproc_step.text)
-        if embedding_preproc_step_module_instance_iri:
-            print("embedding_preproc_step_module_instance_iri id:", embedding_preproc_step_module_instance_iri)
-        else:
-            print("No id found in embedding_preproc_step_module_instance_iri")
-            st.error("No iri for the embedding_preproc_step_module_instance_iri")
-
         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                               embedding_preproc_step_module_instance_iri,
+                                                               cel_transform_step_module_instance_iri,
                                                                experiment_resource)
+
         st.info("response_check_module_instance_status code" + str(
             response_check_module_instance_status.status_code))
 
@@ -923,25 +828,272 @@ def start_embedding_data_preprocess(experiment_resource, not_processed_data_iri)
         elapsedTime = SLEEP_IN_SECONDS
         while "exited" not in response_check_module_instance_status.text:
             response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                   embedding_preproc_step_module_instance_iri,
+                                                                   cel_transform_step_module_instance_iri,
                                                                    experiment_resource)
             time.sleep(SLEEP_IN_SECONDS)
             elapsedTime = elapsedTime + SLEEP_IN_SECONDS
             # Update the text of the info box in the session state
             st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
 
-        st.success(
-            "Module instance ({}) for the experiment ({}) finished successfully.".format(
-                embedding_preproc_step_module_instance_iri,
-                experiment_resource))
         # TODO SHOULD NOT BE HARDCODED
-        processed_file_iri = extract_X_from_triplestore(
-            "http://w3id.org/dice-research/enexa/module/wikidata-preproc/result/output", META_DATA_ENDPOINT,
-            META_DATA_GRAPH_NAME,
-            embedding_preproc_step_module_instance_iri)
+        owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
+                                                       META_DATA_GRAPH_NAME,
+                                                       cel_transform_step_module_instance_iri)
+        start_cel_step(experiment_resource, owl_file_iri)
 
-        start_embeddings_step(experiment_resource, processed_file_iri)
-        # start_embeddings_transform_step(experiment_resource, processed_file_iri)
+def start_tentris(experiment_resource, repaired_a_box_iri):
+    st.info("starting Tentris step")
+    tentris_experiment_data = create_experiment_data()
+    tentris_experiment_resource = tentris_experiment_data["experiment_iri"]
+    tentris_experiment_directory = tentris_experiment_data["experiment_folder"]
+    tentris_relative_file_location_inside_enexa_dir = tentris_experiment_directory
+
+    #add wikidata5m
+    responce_add_wikidata5m = add_module_configuration_to_enexa_service(
+        tentris_experiment_resource,
+        tentris_relative_file_location_inside_enexa_dir,
+        DATASET_NAME_TENTRIS)
+    if (responce_add_wikidata5m.status_code != 200):
+        st.error("cannot add file: " + DATASET_NAME_TENTRIS)
+    else:
+        st.info("file add " + responce_add_wikidata5m.text + " ")
+
+
+        wikidata5m_unfiltered_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
+
+        response_tentris_step = start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri)
+
+        container_id_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
+                                                               "http://w3id.org/dice-research/enexa/ontology#containerId")
+
+
+        container_name_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
+                                                                 "http://w3id.org/dice-research/enexa/ontology#containerName")
+
+
+        read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed, "0.0.0.0:9080")
+
+        triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql?query="
+
+        all_iri = str("<https://www.wikidata.org/wiki/Q9401> <https://www.wikidata.org/wiki/Q152051> <https://www.wikidata.org/wiki/Q3895> <https://www.wikidata.org/wiki/Q234021> <https://www.wikidata.org/wiki/Q659379>")
+
+        query_str_first = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?s { "+all_iri+" }    ?s ?p ?o .}"
+        print("first query " +query_str_first)
+        st.info("first query " +query_str_first)
+        firstpartGraph = run_query_triplestore(query_str_first, triple_store_endpoint)
+
+        query_str_second = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?o { "+all_iri+" }    ?s ?p ?o .}"
+        print("second query " + query_str_second)
+        st.info("second query " + query_str_second)
+        secondpartGraph = run_query_triplestore(query_str_second, triple_store_endpoint)
+
+        firstpartGraph += secondpartGraph
+        st.info("concat the graphs")
+        filtered_wikidata5m_file_path = ENEXA_SHARED_DIRECTORY + "/" + str(uuid.uuid4())+".nt"
+        st.info(filtered_wikidata5m_file_path)
+        # Serialize the RDF graph as an .nt file
+
+        firstpartGraph.serialize(destination=filtered_wikidata5m_file_path, format="nt")
+
+        # with open(filtered_wikidata5m_file_path, 'wb') as f:
+        #     f.write(firstpartGraph.serialize(format='nt'))
+        # #save as file
+        # st.success("file saved")
+
+        # f = open(filtered_wikidata5m_file_path , 'w')
+        # f.write(firstpart)
+        # f.write(secondpart)
+        # f.close()
+        #add to service
+        responce_add_filteredwikidata5m = add_file_from_share_folder(
+            tentris_experiment_resource,
+            filtered_wikidata5m_file_path)
+        if (responce_add_wikidata5m.status_code != 200):
+            st.error("cannot add file: " + filtered_wikidata5m_file_path)
+        else:
+            st.info("file add " + responce_add_wikidata5m.text + " ")
+            wikidata5m_iri = extract_id_from_turtle(responce_add_filteredwikidata5m.text)
+
+            start_cel_transform_step(experiment_resource, repaired_a_box_iri, wikidata5m_iri)
+
+
+# def start_embeddings_step(experiment_resource, iri_nt_file_from_preprocess_embedding):
+#     st.info("starting embeding step")
+#     embeddings_experiment_data = create_experiment_data()
+#     # embeddings_experiment_resource = embeddings_experiment_data["experiment_iri"]
+#     embeddings_experiment_directory = embeddings_experiment_data["experiment_folder"]
+#     # embeddings_relative_file_location_inside_enexa_dir = embeddings_experiment_directory
+#     # add ontology
+#     response_embeddings_step = start_embeddings_module(experiment_resource, iri_nt_file_from_preprocess_embedding)
+#     if (response_embeddings_step.status_code != 200):
+#         st.error("wrror in running transform module")
+#     else:
+#         embeddings_step_module_instance_iri = extract_id_from_turtle(response_embeddings_step.text)
+#         if embeddings_step_module_instance_iri:
+#             print("id:", embeddings_step_module_instance_iri)
+#         else:
+#             print("No id found in JSON-LD")
+#             st.error("No iri for the last module found")
+#         st.info("embeddings_step_module_instance_iri is :" + embeddings_step_module_instance_iri)
+#         st.info("experiment_resource is :" + experiment_resource)
+#
+#         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT, embeddings_step_module_instance_iri,
+#                                                                experiment_resource)
+#
+#         # st.info("response_check_module_instance_status code" + str(
+#         #     response_check_module_instance_status.status_code))
+#
+#         # Store the text of the info box in the session state
+#
+#         container_id_embeddings_step = extract_X_from_turtle(response_embeddings_step.text,
+#                                                              "http://w3id.org/dice-research/enexa/ontology#containerId")
+#         st.info("container_id_embeddings_step is : " + container_id_embeddings_step)
+#         print_container_logs(container_id_embeddings_step)
+#
+#         st.success(
+#             "Module instance ({}) for the experiment ({}) finished successfully.".format(
+#                 embeddings_step_module_instance_iri,
+#                 experiment_resource))
+#
+#         start_cel_transform_step(experiment_resource, iri_nt_file_from_preprocess_embedding)
+
+
+# def start_embeddings_transform_step(experiment_resource, iri_from_last_step):
+#     st.info("starting transform step")
+#     transform_experiment_data = create_experiment_data()
+#     transform_experiment_resource = transform_experiment_data["experiment_iri"]
+#     transform_experiment_directory = transform_experiment_data["experiment_folder"]
+#     transform_relative_file_location_inside_enexa_dir = transform_experiment_directory
+#     # add ontology
+#     transform_responce_ontology_resource = add_module_configuration_to_enexa_service(
+#         transform_experiment_resource,
+#         transform_relative_file_location_inside_enexa_dir,
+#         "1-ontology_version_1.ttl")
+#
+#     if (transform_responce_ontology_resource.status_code != 200):
+#         st.error("can not add ontology file ")
+#     else:
+#         # add wikipedia
+#         # add ontology
+#         wiki_data_5m_resource = add_module_configuration_to_enexa_service(
+#             transform_experiment_resource,
+#             transform_relative_file_location_inside_enexa_dir,
+#             DATASET_NAME)
+#         # wiki_data_5m_resource = add_module_configuration_to_enexa_service(
+#         #     transform_experiment_resource,
+#         #     transform_relative_file_location_inside_enexa_dir,
+#         #     "wikidata5M.ttl.gz")
+#         if (wiki_data_5m_resource.status_code != 200):
+#             st.error(" can not add wikidata5m")
+#         else:
+#             ontologyIRI = extract_id_from_turtle(transform_responce_ontology_resource.text)
+#             wikidata5mIRI = extract_id_from_turtle(wiki_data_5m_resource.text)
+#             response_transform_step = start_embedding_transform_module(experiment_resource, iri_from_last_step,
+#                                                                        ontologyIRI,
+#                                                                        wikidata5mIRI)
+#             if (response_transform_step.status_code != 200):
+#                 st.error("wrror in running transform module")
+#             else:
+#                 transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
+#                 if transform_step_module_instance_iri:
+#                     print("id:", transform_step_module_instance_iri)
+#                 else:
+#                     print("No id found in JSON-LD")
+#                     st.error("No iri for the last module found")
+#                 # st.info("transform_step_module_instance_iri is :" + transform_step_module_instance_iri)
+#                 # st.info("experiment_resource is :" + experiment_resource)
+#
+#                 response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+#                                                                        transform_step_module_instance_iri,
+#                                                                        experiment_resource)
+#
+#                 # st.info("response_check_module_instance_status code" + str(response_check_module_instance_status.status_code))
+#
+#                 # Store the text of the info box in the session state
+#                 # st.session_state[
+#                 #     "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
+#                 # st.info(st.session_state["info_box_text"])
+#
+#                 # ask for status of the module instance until it is finished
+#                 elapsedTime = SLEEP_IN_SECONDS
+#                 while "exited" not in response_check_module_instance_status.text:
+#                     response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+#                                                                            transform_step_module_instance_iri,
+#                                                                            experiment_resource)
+#
+#                     time.sleep(SLEEP_IN_SECONDS)
+#                     elapsedTime = elapsedTime + SLEEP_IN_SECONDS
+#                     # Update the text of the info box in the session state
+#                     st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+#
+#                 # st.success(
+#                 #     "Module instance ({}) for the experiment ({}) finished successfully.".format(
+#                 #         transform_step_module_instance_iri,
+#                 #         experiment_resource))
+#                 # TODO SHOULD NOT BE HARDCODED
+#                 # transformed_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,META_DATA_GRAPH_NAME, transform_step_module_instance_iri)
+#                 transformed_file_iri = extract_X_from_triplestore(
+#                     "http://w3id.org/dice-research/enexa/module/transform/result/output", META_DATA_ENDPOINT,
+#                     META_DATA_GRAPH_NAME,
+#                     transform_step_module_instance_iri)
+#
+#                 # start_embedding_data_preprocess(experiment_resource, transformed_file_iri)
+#                 start_embeddings_step(experiment_resource, transformed_file_iri)
+
+
+# def start_embedding_data_preprocess(experiment_resource, not_processed_data_iri):
+#     st.info("starting preprocess step" + str(experiment_resource) + " " + str(not_processed_data_iri))
+#     embedding_preproc_experiment_data = create_experiment_data()
+#     embedding_preproc_experiment_resource = embedding_preproc_experiment_data["experiment_iri"]
+#     embedding_preproc_experiment_directory = embedding_preproc_experiment_data["experiment_folder"]
+#     embedding_preproc_relative_file_location_inside_enexa_dir = embedding_preproc_experiment_directory
+#     responce_embedding_preproc_step = start_preprocess_module(experiment_resource, not_processed_data_iri)
+#     if (responce_embedding_preproc_step.status_code != 200):
+#         st.error("error in preprocess data")
+#     else:
+#         embedding_preproc_step_module_instance_iri = extract_id_from_turtle(responce_embedding_preproc_step.text)
+#         if embedding_preproc_step_module_instance_iri:
+#             print("embedding_preproc_step_module_instance_iri id:", embedding_preproc_step_module_instance_iri)
+#         else:
+#             print("No id found in embedding_preproc_step_module_instance_iri")
+#             st.error("No iri for the embedding_preproc_step_module_instance_iri")
+#
+#         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+#                                                                embedding_preproc_step_module_instance_iri,
+#                                                                experiment_resource)
+#         st.info("response_check_module_instance_status code" + str(
+#             response_check_module_instance_status.status_code))
+#
+#         # Store the text of the info box in the session state
+#         st.session_state[
+#             "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
+#         st.info(st.session_state["info_box_text"])
+#
+#         # ask for status of the module instance until it is finished
+#         elapsedTime = SLEEP_IN_SECONDS
+#         while "exited" not in response_check_module_instance_status.text:
+#             response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+#                                                                    embedding_preproc_step_module_instance_iri,
+#                                                                    experiment_resource)
+#             time.sleep(SLEEP_IN_SECONDS)
+#             elapsedTime = elapsedTime + SLEEP_IN_SECONDS
+#             # Update the text of the info box in the session state
+#             st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+#
+#         st.success(
+#             "Module instance ({}) for the experiment ({}) finished successfully.".format(
+#                 embedding_preproc_step_module_instance_iri,
+#                 experiment_resource))
+#         # TODO SHOULD NOT BE HARDCODED
+#         processed_file_iri = extract_X_from_triplestore(
+#             "http://w3id.org/dice-research/enexa/module/wikidata-preproc/result/output", META_DATA_ENDPOINT,
+#             META_DATA_GRAPH_NAME,
+#             embedding_preproc_step_module_instance_iri)
+#
+#         start_embeddings_step(experiment_resource, processed_file_iri)
+#         # start_embeddings_transform_step(experiment_resource, processed_file_iri)
+
+
 
 
 def start_repair_step(experiment_resource, module_instance_id):
@@ -1008,7 +1160,8 @@ def start_repair_step(experiment_resource, module_instance_id):
             # skip embeddings
             repaired_a_box_iri = extract_id_from_turtle(response_second_step.text)
             st.info("repaired a box iri os : " + str(repaired_a_box_iri))
-            start_cel_transform_step(experiment_resource, repaired_a_box_iri)
+            #start_cel_transform_step(experiment_resource, repaired_a_box_iri)
+            start_tentris(experiment_resource, repaired_a_box_iri)
 
 
 def print_container_logs(container_id):
@@ -1038,7 +1191,7 @@ def read_container_logs_stop_when_reach_x(container_id, x):
         with st.expander("logs for this container :" + str(container_id)):
             for log_line in container.logs(stream=True):
                 st.text(log_line)
-                if str(log_line.decode("utf-8")).startswith(x):
+                if x in str(log_line.decode("utf-8")):
                     return
     except docker.errors.NotFound:
         st.error("Container with ID " + str(container_id) + " not found.")
@@ -1252,11 +1405,18 @@ if uploaded_files is not None and uploaded_files != []:
 # st.button('test repair step', on_click=start_test_repair_step)
 
 
-def send_cel_req():
-    start_cel_service_step("http://example.org/enexa/1520a653-a0ea-46e9-8e2d-f73feab7a953",
-                           "http://example.org/enexa/40a05d2f-d622-4dc6-8840-4ea45bae4364",
-                           "http://example.org/enexa/c9d46f6c-2261-409d-91cc-4f5b91039710",
-                           "http://example.org/enexa/fdce6926-17cb-44a3-b36c-96fdc88c266c")
+# def send_cel_req():
+#     start_cel_service_step("http://example.org/enexa/1520a653-a0ea-46e9-8e2d-f73feab7a953",
+#                            "http://example.org/enexa/40a05d2f-d622-4dc6-8840-4ea45bae4364",
+#                            "http://example.org/enexa/c9d46f6c-2261-409d-91cc-4f5b91039710",
+#                            "http://example.org/enexa/fdce6926-17cb-44a3-b36c-96fdc88c266c")
+#
+#
+# st.button('send cel request', on_click=send_cel_req)
+
+def send_tentris_req():
+    start_tentris("http://example.org/enexa/5dc9e661-6c55-4d52-96e3-96219873d14f",
+                           "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
 
 
-st.button('send cel request', on_click=send_cel_req)
+st.button('continue from tentris', on_click=send_tentris_req)
