@@ -1,5 +1,6 @@
 import json
 
+import rdflib
 import streamlit as st
 from rdflib.plugins.sparql import prepareQuery
 from rdflib.plugins.sparql.processor import SPARQLResult
@@ -17,7 +18,7 @@ import docker
 import uuid
 
 from decouple import config
-from rdflib import Graph
+from rdflib import Graph, URIRef
 from SPARQLWrapper import SPARQLWrapper
 
 logging.basicConfig()
@@ -531,32 +532,45 @@ def run_query_triplestore_subject(query_str, triple_store_endpoint,s):
     print ("endpoint is :"+triple_store_endpoint)
     # st.info(query_str)
     sparql.setQuery(query_str)
-
-    #query_obj = prepareQuery(query_str)
-    #st.info(str(query_obj))
-    #result = SPARQLResult(triple_store_endpoint, query_obj)
-    #g += result
-    # Use the query() method to execute the query against the endpoint
-    #result = g.query(query_obj, initBindings={'triple_store_endpoint': triple_store_endpoint})
-
-    # Set the result format to JSON
     sparql.setReturnFormat('json')
-
-    # Execute the query and parse the results
     results = sparql.query().convert()
 
-    # Loop through the results and add them to the graph
-    #for row in results:
-    #    g.add(row)
-
-    #st.success("graph size is : " + str(len(g)))
-    #return g
+    st.info(str(results))
 
     for result in results["results"]["bindings"]:
-        subject = result["s"]["value"]
-        predicate = result["p"]["value"]
-        oobject = result["o"]["value"]
-        g.add((subject, predicate, oobject))
+        p = result["p"]["value"]
+        st.info("p is :"+str(p))
+        o = result["o"]["value"]
+        st.info("o is :" + str(o))
+
+        g.add((rdflib.term.URIRef(s), rdflib.term.URIRef(str(p)), rdflib.term.URIRef(str(o))))
+
+    num_triples = len(g)
+
+    st.success("graph size is : " + str(num_triples))
+    return g
+
+
+def run_query_triplestore_object(query_str, triple_store_endpoint, o):
+    g = Graph()
+    # st.info("triple store endpoint is :"+triple_store_endpoint)
+    sparql = SPARQLWrapper(triple_store_endpoint)
+    print("query is :" + query_str)
+    print ("endpoint is :" + triple_store_endpoint)
+    # st.info(query_str)
+    sparql.setQuery(query_str)
+    sparql.setReturnFormat('json')
+    results = sparql.query().convert()
+
+    st.info(str(results))
+
+    for result in results["results"]["bindings"]:
+        p = result["p"]["value"]
+        st.info("p is :" + str(p))
+        s = result["s"]["value"]
+        st.info("s is :" + str(s))
+
+        g.add((rdflib.term.URIRef(str(s)), rdflib.term.URIRef(str(p)), rdflib.term.URIRef(o)))
 
     num_triples = len(g)
 
@@ -628,33 +642,6 @@ def extract_cel_trained_kge_from_triplestore(triple_store_endpoint, graph_name, 
     else:
         return returnIRI
 
-
-def add_file_from_share_folder(experiment_resource,uploaded_filename):
-    print("add_module_configuration_to_enexa_service")
-    # copy the file in share directory
-    print("experiment_resource: " + experiment_resource)
-    print("uploaded_filename: " + uploaded_filename)
-
-    # add resource
-    ttl_for_registering_the_file_upload = """
-        @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
-        @prefix prov:   <http://www.w3.org/ns/prov#> .
-
-        [] a prov:Entity ; 
-            enexa:experiment <{}> ; 
-            enexa:location "{}" .
-        """.format(experiment_resource, uploaded_filename)
-
-    ttl_for_registering_the_file_upload_as_jsonld = turtle_to_jsonld(ttl_for_registering_the_file_upload)
-
-    with st.expander("Show message for registering the file upload"):
-        st.code(ttl_for_registering_the_file_upload, language="turtle")
-        st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
-
-    response = requests.post(SERVER_ENDPOINT + "/add-resource", data=ttl_for_registering_the_file_upload_as_jsonld,
-                             headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
-    print("file added and the response is :" + str(response))
-    return response
 
 def add_module_configuration_to_enexa_service(experiment_resource, relative_file_location_inside_enexa_dir,
                                               uploaded_filename):
@@ -785,7 +772,7 @@ def start_cel_step(experiment_resource, owl_file_iri):
 
 def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri):
     # transform nt file to owl
-    st.info("starting cel transform step")
+    st.info("starting cel transform step experiment_resource : "+experiment_resource+" repaired_abox_iri : " +repaired_abox_iri+" wikidata5m_iri : "+wikidata5m_iri)
     cel_transform_experiment_data = create_experiment_data()
     cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
     cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
@@ -894,27 +881,33 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
 
-        all_iri = str("<https://www.wikidata.org/wiki/Q9401> <https://www.wikidata.org/wiki/Q152051> <https://www.wikidata.org/wiki/Q3895> <https://www.wikidata.org/wiki/Q234021> <https://www.wikidata.org/wiki/Q659379>")
+        all_iri = ["https://www.wikidata.org/wiki/Q9401" , "https://www.wikidata.org/wiki/Q152051" , "https://www.wikidata.org/wiki/Q3895" , "https://www.wikidata.org/wiki/Q234021" , "https://www.wikidata.org/wiki/Q659379"]
 
         #query_str_first = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?s { "+all_iri+" }    ?s ?p ?o .}"
-        query_str_first = "SELECT ?p ?o WHERE {  <https://www.wikidata.org/wiki/Q9401> ?p ?o .} "
-        print("first query " +query_str_first)
-        st.info("first query " +query_str_first)
-        firstpartGraph = run_query_triplestore(query_str_first, triple_store_endpoint)
+        subject_graph = Graph()
+        for iri in all_iri:
+            query_str_first = "SELECT ?p ?o WHERE {  <"+iri+"> ?p ?o .} "
+            print("first query " + query_str_first)
+            st.info("first query " + query_str_first)
+            subject_graph += run_query_triplestore_subject(query_str_first, triple_store_endpoint,iri)
 
-        #query_str_second = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?o { "+all_iri+" }    ?s ?p ?o .}"
-        query_str_second = "SELECT ?s ?p WHERE {  ?s ?p <https://www.wikidata.org/wiki/Q9401> .}"
-        print("second query " + query_str_second)
-        st.info("second query " + query_str_second)
-        secondpartGraph = run_query_triplestore(query_str_second, triple_store_endpoint)
 
-        firstpartGraph += secondpartGraph
+        object_graph = Graph()
+        for iri in all_iri:
+            query_str_second = "SELECT ?s ?p WHERE {  ?s ?p <"+iri+"> .}"
+            print("second query " + query_str_second)
+            st.info("second query " + query_str_second)
+            object_graph += run_query_triplestore_object(query_str_second, triple_store_endpoint,iri)
+
+        subject_graph += object_graph
+
         st.info("concat the graphs")
-        filtered_wikidata5m_file_path = ENEXA_SHARED_DIRECTORY + "/" + str(uuid.uuid4())+".nt"
+        filtered_wikidata5m_file_name = str(uuid.uuid4()) + ".nt"
+        filtered_wikidata5m_file_path = ENEXA_SHARED_DIRECTORY + "/" +filtered_wikidata5m_file_name
         st.info(filtered_wikidata5m_file_path)
         # Serialize the RDF graph as an .nt file
 
-        firstpartGraph.serialize(destination=filtered_wikidata5m_file_path, format="nt")
+        subject_graph.serialize(destination=filtered_wikidata5m_file_path, format="nt")
 
         # with open(filtered_wikidata5m_file_path, 'wb') as f:
         #     f.write(firstpartGraph.serialize(format='nt'))
@@ -926,9 +919,10 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         # f.write(secondpart)
         # f.close()
         #add to service
-        responce_add_filteredwikidata5m = add_file_from_share_folder(
+        responce_add_filteredwikidata5m = add_module_configuration_to_enexa_service(
             tentris_experiment_resource,
-            filtered_wikidata5m_file_path)
+            tentris_relative_file_location_inside_enexa_dir,
+            filtered_wikidata5m_file_name)
         if (responce_add_wikidata5m.status_code != 200):
             st.error("cannot add file: " + filtered_wikidata5m_file_path)
         else:
