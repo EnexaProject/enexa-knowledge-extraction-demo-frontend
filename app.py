@@ -91,7 +91,8 @@ def create_experiment_data():
   """
     response = requests.post(SERVER_ENDPOINT + "/start-experiment", data="")
     if response.status_code == 200 or response.status_code == 201:
-        st.code(pprint.pformat(response.json(), indent=2), language="json")
+        with st.expander("Experiment started"):
+            st.code(pprint.pformat(response.json(), indent=2), language="json")
         return {
             "experiment_iri": response.json()["@id"],
             "experiment_folder": response.json()[ENEXA_EXPERIMENT_SHARED_DIRECTORY_LITERAL],
@@ -408,7 +409,7 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/extraction/1.0.0> ;
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("Now, the ENEXA task will be started at the ENEXA platform using the following message."):
+    with st.expander("Starting knowldge extraction module."):
         st.code(start_module_message, language="turtle")
         st.code(start_module_message_as_jsonld, language="json")
 
@@ -451,15 +452,8 @@ st.title("ENEXA Integration Demo")
 # print_banner_to_console()
 
 st.markdown(
-    """
-This demo is showing the integration of the processing steps regarding the Class Expression Learning in ENEXA.
-
-## Knowledge Extraction 
-
-### Input: Upload JSON files with URLs for the knowledge extraction
-
-Upload a JSON file containing one array of URLs to Wikipedia articles.
-
+    """ 
+Input: Upload JSON files containing an array of URLs to Wikipedia articles URLs for the knowledge extraction.
 """)
 uploaded_files = st.file_uploader("Upload a JSON file", accept_multiple_files=True, label_visibility="collapsed",
                                   type=["json"])
@@ -473,7 +467,7 @@ def extract_X_from_turtle(turtle_text, x):
     # Parse the Turtle file
     graph.parse(data=turtle_text, format="ttl")
     query = "SELECT ?id ?o \n WHERE { \n ?id <" + x + "> ?o .\n }"
-    st.info(query)
+    #st.info(query)
     # Execute the query
     results = graph.query(query)
     # Extract and return IDs
@@ -535,19 +529,19 @@ def run_query_triplestore_subject(query_str, triple_store_endpoint,s):
     sparql.setReturnFormat('json')
     results = sparql.query().convert()
 
-    st.info(str(results))
+    #st.info(str(results))
 
     for result in results["results"]["bindings"]:
         p = result["p"]["value"]
-        st.info("p is :"+str(p))
+        #st.info("p is :"+str(p))
         o = result["o"]["value"]
-        st.info("o is :" + str(o))
+        #st.info("o is :" + str(o))
 
         g.add((rdflib.term.URIRef(s), rdflib.term.URIRef(str(p)), rdflib.term.URIRef(str(o))))
 
     num_triples = len(g)
 
-    st.success("graph size is : " + str(num_triples))
+    #st.success("graph size is : " + str(num_triples))
     return g
 
 
@@ -562,19 +556,19 @@ def run_query_triplestore_object(query_str, triple_store_endpoint, o):
     sparql.setReturnFormat('json')
     results = sparql.query().convert()
 
-    st.info(str(results))
+    #st.info(str(results))
 
     for result in results["results"]["bindings"]:
         p = result["p"]["value"]
-        st.info("p is :" + str(p))
+        #st.info("p is :" + str(p))
         s = result["s"]["value"]
-        st.info("s is :" + str(s))
+        #st.info("s is :" + str(s))
 
         g.add((rdflib.term.URIRef(str(s)), rdflib.term.URIRef(str(p)), rdflib.term.URIRef(o)))
 
-    num_triples = len(g)
+    #num_triples = len(g)
 
-    st.success("graph size is : " + str(num_triples))
+    #st.success("graph size is : " + str(num_triples))
     return g
 
 
@@ -672,7 +666,7 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
 
     ttl_for_registering_the_file_upload_as_jsonld = turtle_to_jsonld(ttl_for_registering_the_file_upload)
 
-    with st.expander("Show message for registering the file upload"):
+    with st.expander("File added"):
         st.code(ttl_for_registering_the_file_upload, language="turtle")
         st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
 
@@ -683,8 +677,7 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
 
 
 def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_file_kge_iri):
-    st.info(
-        "starting cel service" + "experiment_resource :" + experiment_resource + "owl_file_iri :" + owl_file_iri + "embedding_csv_iri :" + embedding_csv_iri + "cel_trained_file_kge_iri:" + cel_trained_file_kge_iri)
+    # st.info("starting cel service" + "experiment_resource :" + experiment_resource + "owl_file_iri :" + owl_file_iri + "embedding_csv_iri :" + embedding_csv_iri + "cel_trained_file_kge_iri:" + cel_trained_file_kge_iri)
     print(
             "starting cel service" + "experiment_resource :" + experiment_resource + "owl_file_iri :" + owl_file_iri + "embedding_csv_iri :" + embedding_csv_iri + "cel_trained_file_kge_iri:" + cel_trained_file_kge_iri)
     cel_service_experiment_data = create_experiment_data()
@@ -704,7 +697,7 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
 
     read_container_logs_stop_when_reach_x(container_id_cel_step_deployed, " * Restarting with stat")
 
-    # TODO send request here
+
     url = "http://" + container_name_cel_step_deployed + ":7860/predict"
 
     headers = {
@@ -716,18 +709,19 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
         "negatives": ["https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q234021", "https://www.wikidata.org/wiki/Q659379"]
     }
 
+    st.success("Sending request" + str(data))
     response = requests.post(url, headers=headers, data=json.dumps(data))
 
     # Print the response
     print(response.status_code)
     print(response.text)
 
-    st.info(response.status_code)
     st.info(response.text)
+    st.success(" Done !")
 
 
 def start_cel_step(experiment_resource, owl_file_iri):
-    st.info("starting cel step")
+    st.info("Starting class expression learning ...")
     cel_experiment_data = create_experiment_data()
     cel_experiment_resource = cel_experiment_data["experiment_iri"]
     cel_experiment_directory = cel_experiment_data["experiment_folder"]
@@ -743,9 +737,10 @@ def start_cel_step(experiment_resource, owl_file_iri):
     if (add_preproccessed_embedding_csv.status_code != 200):
         st.error("cannot add file")
     else:
-        st.info("Keci_entity_embeddings file add " + add_preproccessed_embedding_csv.text + " ")
+        #st.info("Keci_entity_embeddings file add to servcie" + add_preproccessed_embedding_csv.text + " ")
 
         embedding_csv_iri = extract_id_from_turtle(add_preproccessed_embedding_csv.text)
+        #st.info("starting CEL training module ...")
         response_cel_step = start_cel_module(experiment_resource, owl_file_iri, embedding_csv_iri)
         if (response_cel_step.status_code != 200):
             st.error("error in running transform module")
@@ -756,12 +751,13 @@ def start_cel_step(experiment_resource, owl_file_iri):
             else:
                 print("No id found in JSON-LD")
                 st.error("No iri for the last module found")
-            st.info("cel_step_module_instance_iri is :" + cel_step_module_instance_iri)
-            st.info("experiment_resource is :" + experiment_resource)
+            #st.info("starting CEL training module started")
+            #st.info("cel_step_module_instance_iri is :" + cel_step_module_instance_iri)
+            #st.info("experiment_resource is :" + experiment_resource)
 
             container_id_cel_step = extract_X_from_turtle(response_cel_step.text,
                                                           "http://w3id.org/dice-research/enexa/ontology#containerId")
-            st.info("container_id_embeddings_step is : " + container_id_cel_step)
+            #st.info("container_id_embeddings_step is : " + container_id_cel_step)
             print_container_logs(container_id_cel_step)
 
             cel_trained_file_kge_iri = extract_cel_trained_kge_from_triplestore(META_DATA_ENDPOINT,
@@ -772,7 +768,7 @@ def start_cel_step(experiment_resource, owl_file_iri):
 
 def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri):
     # transform nt file to owl
-    st.info("starting cel transform step experiment_resource : "+experiment_resource+" repaired_abox_iri : " +repaired_abox_iri+" wikidata5m_iri : "+wikidata5m_iri)
+    #st.info("starting cel transform step experiment_resource : "+experiment_resource+" repaired_abox_iri : " +repaired_abox_iri+" wikidata5m_iri : "+wikidata5m_iri)
     cel_transform_experiment_data = create_experiment_data()
     cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
     cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
@@ -815,20 +811,18 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
         else:
             print("No id found in JSON-LD")
             st.error("No iri for the last module found")
-        st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
-        st.info("experiment_resource is :" + experiment_resource)
+        #st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
+        #st.info("experiment_resource is :" + experiment_resource)
 
         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
                                                                cel_transform_step_module_instance_iri,
                                                                experiment_resource)
 
-        st.info("response_check_module_instance_status code" + str(
-            response_check_module_instance_status.status_code))
+        #st.info("response_check_module_instance_status code" + str(response_check_module_instance_status.status_code))
 
         # Store the text of the info box in the session state
-        st.session_state[
-            "info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-        st.info(st.session_state["info_box_text"])
+        #st.session_state["info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
+        #st.info(st.session_state["info_box_text"])
 
         # ask for status of the module instance until it is finished
         elapsedTime = SLEEP_IN_SECONDS
@@ -839,7 +833,7 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
             time.sleep(SLEEP_IN_SECONDS)
             elapsedTime = elapsedTime + SLEEP_IN_SECONDS
             # Update the text of the info box in the session state
-            st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+            #st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
 
         # TODO SHOULD NOT BE HARDCODED
         owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
@@ -848,7 +842,7 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
         start_cel_step(experiment_resource, owl_file_iri)
 
 def start_tentris(experiment_resource, repaired_a_box_iri):
-    st.info("starting Tentris step")
+    st.info("Starting Tentris ...")
     tentris_experiment_data = create_experiment_data()
     tentris_experiment_resource = tentris_experiment_data["experiment_iri"]
     tentris_experiment_directory = tentris_experiment_data["experiment_folder"]
@@ -862,8 +856,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
     if (responce_add_wikidata5m.status_code != 200):
         st.error("cannot add file: " + DATASET_NAME_TENTRIS)
     else:
-        st.info("file add " + responce_add_wikidata5m.text + " ")
-
+        #st.info("data set add to service " + responce_add_wikidata5m.text + " ")
 
         wikidata5m_unfiltered_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
 
@@ -879,6 +872,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed, "0.0.0.0:9080")
 
+        st.success("Tentris in ready")
         triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
 
         all_iri = ["https://www.wikidata.org/wiki/Q9401" , "https://www.wikidata.org/wiki/Q152051" , "https://www.wikidata.org/wiki/Q3895" , "https://www.wikidata.org/wiki/Q234021" , "https://www.wikidata.org/wiki/Q659379"]
@@ -888,7 +882,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         for iri in all_iri:
             query_str_first = "SELECT ?p ?o WHERE {  <"+iri+"> ?p ?o .} "
             print("first query " + query_str_first)
-            st.info("first query " + query_str_first)
+            # st.info("query is : " + query_str_first + " sending to Tentris")
             subject_graph += run_query_triplestore_subject(query_str_first, triple_store_endpoint,iri)
 
 
@@ -896,19 +890,20 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         for iri in all_iri:
             query_str_second = "SELECT ?s ?p WHERE {  ?s ?p <"+iri+"> .}"
             print("second query " + query_str_second)
-            st.info("second query " + query_str_second)
+            # st.info("query is : " + query_str_second+ " sending to Tentris")
             object_graph += run_query_triplestore_object(query_str_second, triple_store_endpoint,iri)
 
         subject_graph += object_graph
 
-        st.info("concat the graphs")
+        num_triples = len(subject_graph)
+        # st.info("concat the graphs the graph size is " + str(num_triples))
+
         filtered_wikidata5m_file_name = str(uuid.uuid4()) + ".nt"
         filtered_wikidata5m_file_path = ENEXA_SHARED_DIRECTORY + "/" +filtered_wikidata5m_file_name
-        st.info(filtered_wikidata5m_file_path)
+        # st.info("graph will be save here : "+filtered_wikidata5m_file_path)
         # Serialize the RDF graph as an .nt file
 
         subject_graph.serialize(destination=filtered_wikidata5m_file_path, format="nt")
-
         # with open(filtered_wikidata5m_file_path, 'wb') as f:
         #     f.write(firstpartGraph.serialize(format='nt'))
         # #save as file
@@ -926,7 +921,8 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         if (responce_add_wikidata5m.status_code != 200):
             st.error("cannot add file: " + filtered_wikidata5m_file_path)
         else:
-            st.info("file add " + responce_add_wikidata5m.text + " ")
+            # st.info("graph add to service ")
+
             wikidata5m_iri = extract_id_from_turtle(responce_add_filteredwikidata5m.text)
 
             start_cel_transform_step(experiment_resource, repaired_a_box_iri, wikidata5m_iri)
@@ -1112,7 +1108,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
 
 def start_repair_step(experiment_resource, module_instance_id):
-    st.info("starting second step")
+    st.info("Starting knowledge graph repair ...")
 
     second_step_experiment_data = create_experiment_data()
     second_step_experiment_resource = second_step_experiment_data["experiment_iri"]
@@ -1134,12 +1130,12 @@ def start_repair_step(experiment_resource, module_instance_id):
     if (second_step_responce_configFile_resource.status_code != 200):
         st.error("cannot add file")
     else:
-        st.info("file add " + second_step_responce_configFile_resource.text + " ")
+        #st.info("T-box file add " + second_step_responce_configFile_resource.text + " ")
 
         uploadedFileId = extract_id_from_turtle(second_step_responce_configFile_resource.text)
 
         # st.info("uploadedFileId " + uploadedFileId)
-
+        # st.info("starting fixing module . . .")
         response_second_step = start_kg_fixing_module(experiment_resource, module_instance_id, uploadedFileId)
 
         if response_second_step.status_code != 200:
@@ -1150,21 +1146,21 @@ def start_repair_step(experiment_resource, module_instance_id):
                 print("id:", second_step_module_instance_iri)
             else:
                 print("No id found in JSON-LD")
-            st.info("module_instance_id is :" + second_step_module_instance_iri)
-            st.info("experiment_resource is :" + experiment_resource)
+            #st.info("fixing module started")
+            #st.info("module_instance_id is :" + second_step_module_instance_iri)
+            #st.info("experiment_resource is :" + experiment_resource)
 
             container_id_fixing_module = extract_X_from_turtle(response_second_step.text,
                                                                "http://w3id.org/dice-research/enexa/ontology#containerId")
-            st.info("container_id_fixing_module is : " + container_id_fixing_module)
+            #st.info("container_id_fixing_module is : " + container_id_fixing_module)
             changedlines = print_container_logs(container_id_fixing_module)
-            with st.expander("fixed triples :"):
+            with st.expander("Fixed triples:"):
                 for change in changedlines:
                     st.text(change)
 
             st.success(
-                "Module instance ({}) for the experiment ({}) finished successfully.".format(
-                    second_step_module_instance_iri,
-                    experiment_resource))
+                "Module instance ({}) finished successfully.".format(
+                    second_step_module_instance_iri))
 
             # repaired_A_box_iri = extract_X_from_triplestore("http://w3id.org/dice-research/enexa/module/kg-fixing/result/fixedKG", META_DATA_ENDPOINT,
             #   META_DATA_GRAPH_NAME,
@@ -1174,7 +1170,7 @@ def start_repair_step(experiment_resource, module_instance_id):
 
             # skip embeddings
             repaired_a_box_iri = extract_id_from_turtle(response_second_step.text)
-            st.info("repaired a box iri os : " + str(repaired_a_box_iri))
+            #st.info("repaired a box iri is : " + str(repaired_a_box_iri))
             #start_cel_transform_step(experiment_resource, repaired_a_box_iri)
             start_tentris(experiment_resource, repaired_a_box_iri)
 
@@ -1184,7 +1180,7 @@ def print_container_logs(container_id):
     try:
         client = docker.from_env()
         container = client.containers.get(container_id)
-        with st.expander("logs for this container :" + str(container_id)):
+        with st.expander("Logs for this container :" + str(container_id)):
             for log_line in container.logs(stream=True):
                 if str(log_line.decode("utf-8")).startswith("INFO: ******* Found inconsistency:") or str(
                         log_line.decode("utf-8")).startswith("INFO: ******* Apply Sound fix:"):
@@ -1198,12 +1194,12 @@ def print_container_logs(container_id):
 
 
 def read_container_logs_stop_when_reach_x(container_id, x):
-    st.info("looking for "+x)
+    #st.info("looking for "+x)
     returnlines = []
     try:
         client = docker.from_env()
         container = client.containers.get(container_id)
-        with st.expander("logs for this container :" + str(container_id)):
+        with st.expander("Logs for this container :" + str(container_id)):
             for log_line in container.logs(stream=True):
                 st.text(log_line)
                 if x in str(log_line.decode("utf-8")):
@@ -1227,7 +1223,6 @@ if uploaded_files is not None and uploaded_files != []:
         experiment_data = create_experiment_data()
         experiment_resource = experiment_data["experiment_iri"]
         experiment_directory = experiment_data["experiment_folder"]
-        st.info("experiment started")
         # TODO
         # relative_file_location_inside_enexa_dir = ENEXA_SHARED_DIRECTORY + "/" + experiment_directory
         relative_file_location_inside_enexa_dir = experiment_directory
@@ -1241,7 +1236,7 @@ if uploaded_files is not None and uploaded_files != []:
         if responce_configFile_resource.status_code != 200:
             st.error("error in upload configuration file ")
         else:
-            st.success("ENEXA generation_parameters.json file upload registered successfully.")
+            #st.success("ENEXA generation_parameters.json file upload registered successfully.")
             # st.info(responce_configFile_resource.text)
             # configFile_resource = extract_id_from_turtle(responce_configFile_resource.text)
             # st.success("configFile_resource is task: {}".format(configFile_resource))
@@ -1254,9 +1249,7 @@ if uploaded_files is not None and uploaded_files != []:
             write_file_to_folder(ENEXA_WRITEABLE_DIRECTORY, uploaded_filename, uploaded_file_content)
             print("File {} uploaded successfully and stored in experiment's directory: {}".format(uploaded_filename,
                                                                                                   ENEXA_WRITEABLE_DIRECTORY))
-            st.info("File :\" {} \" uploaded successfully and stored in experiment's directory: \" {} \" ".format(
-                uploaded_filename,
-                ENEXA_WRITEABLE_DIRECTORY))
+            #st.info("File :\" {} \" uploaded successfully and stored in experiment's directory: \" {} \" ".format(                uploaded_filename,                ENEXA_WRITEABLE_DIRECTORY))
 
             # send configuration file to ENEXA service
             # print ("*****relative_file_location_inside_enexa_dir is :"+relative_file_location_inside_enexa_dir)
@@ -1273,21 +1266,20 @@ if uploaded_files is not None and uploaded_files != []:
                 st.error("Error while registering ENEXA configuration file upload. :cry:")
                 st.error(response_adding_uploaded_file.status_code + " " + str(response_adding_uploaded_file))
             else:
-                st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
+                #st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
                 urls_to_process_iri = extract_id_from_turtle(response_adding_uploaded_file.text)
 
-                st.info("the ID for added resource (uploaded file) is: {}".format(urls_to_process_iri))
+                #st.info("the ID for added resource (uploaded file) is: {}".format(urls_to_process_iri))
 
                 # start a module (i.e., a new container instance of the demanded experiment will be started)
                 # st.info ("###configFile_resource is :" + str(generation_parameters_IRI))
-                st.info(" starting extraction module ...")
+                st.info("Starting extraction module ...")
 
                 response_start_module = start_extraction_module(experiment_resource, urls_to_process_iri,
                                                                 generation_parameters_IRI)
                 if response_start_module.status_code != 200:
                     st.error("Error while starting ENEXA task: {}.".format(response_start_module))
                 else:
-                    st.success("extraction module started")
                     print("starting container")
                     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
                     # st.info("Now, the ENEXA task should be started at the ENEXA platform. Please check the status of your task at the ENEXA platform. Request to {} done.".format(start_container_endpoint))
@@ -1296,7 +1288,7 @@ if uploaded_files is not None and uploaded_files != []:
                     module_instance_iri = extract_id_from_turtle(response_start_module.text)
                     container_id = extract_X_from_turtle(response_start_module.text,
                                                          "http://w3id.org/dice-research/enexa/ontology#containerId")
-                    st.info("container_id is : " + container_id)
+                    #st.info("container_id is : " + container_id)
                     print_container_logs(container_id)
 
                     if module_instance_iri:
@@ -1335,8 +1327,8 @@ if uploaded_files is not None and uploaded_files != []:
 
                     # progress_element_1.text("result is ready . elapsed time is ({} sec) ".format(elapsedTime))
                     st.success(
-                        "Module instance ({}) for the experiment ({}) finished successfully.".format(
-                            module_instance_iri, experiment_resource))
+                        "Module instance ({}) finished successfully.".format(
+                            module_instance_iri))
 
                     # waiting = True
                     # repair_step_button_pushed = False
