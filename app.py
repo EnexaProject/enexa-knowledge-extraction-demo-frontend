@@ -518,6 +518,7 @@ def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_inst
     else:
         return returnIRI
 
+
 def run_query_triplestore_subject(query_str, triple_store_endpoint,s):
     g = Graph()
     # st.info("triple store endpoint is :"+triple_store_endpoint)
@@ -722,6 +723,7 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
 
 def start_cel_step(experiment_resource, owl_file_iri):
     st.info("Starting class expression learning ...")
+    print("Starting class expression learning ... experiment_resource : " + str(experiment_resource) +" owl_file_iri: " +str(owl_file_iri))
     cel_experiment_data = create_experiment_data()
     cel_experiment_resource = cel_experiment_data["experiment_iri"]
     cel_experiment_directory = cel_experiment_data["experiment_folder"]
@@ -769,6 +771,8 @@ def start_cel_step(experiment_resource, owl_file_iri):
 def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri):
     # transform nt file to owl
     #st.info("starting cel transform step experiment_resource : "+experiment_resource+" repaired_abox_iri : " +repaired_abox_iri+" wikidata5m_iri : "+wikidata5m_iri)
+    print(
+        "starting cel transform step experiment_resource : " + experiment_resource + " repaired_abox_iri : " + repaired_abox_iri + " wikidata5m_iri : " + wikidata5m_iri)
     cel_transform_experiment_data = create_experiment_data()
     cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
     cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
@@ -1104,7 +1108,24 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 #         start_embeddings_step(experiment_resource, processed_file_iri)
 #         # start_embeddings_transform_step(experiment_resource, processed_file_iri)
 
-
+def read_file(file_path, num_lines, keyword):
+    try:
+        found_keyword = False
+        line_C = 0
+        lines = []
+        with open(file_path, 'r') as file:
+            for line in file:
+                if found_keyword:
+                    lines.append(line)
+                    line_C = line_C + 1
+                    if line_C == num_lines:
+                        break
+                elif keyword in line:
+                    lines.append(line)
+                    found_keyword = True
+            return lines
+    except Exception as e:
+        return [str(e)]
 
 
 def start_repair_step(experiment_resource, module_instance_id):
@@ -1345,6 +1366,18 @@ if uploaded_files is not None and uploaded_files != []:
                         "http://w3id.org/dice-research/enexa/module/extraction/result/triples", META_DATA_ENDPOINT,
                         META_DATA_GRAPH_NAME,
                         module_instance_iri)
+
+                    file_path = extract_X_from_triplestore(
+                        "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
+                        META_DATA_GRAPH_NAME,
+                        extracted_file_iri)
+
+                    file_path = file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
+
+                    lines = read_file(file_path,100,"BASF")
+                    with st.expander("Extracted triples ("+file_path+")"):
+                        for line in lines :
+                            st.code(line, language='text')
                     start_repair_step(experiment_resource, extracted_file_iri)
 
         # st.markdown("#### Upload (preliminary) T-Box data")
