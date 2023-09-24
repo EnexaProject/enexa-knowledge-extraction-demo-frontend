@@ -107,7 +107,7 @@ def create_experiment_data():
     return "http://example.org/experiment1"
 
 
-def add_resource_to_service(experiment_resource, relative_file_location_inside_enexa_dir, file_to_add):
+def add_resource_to_service(experiment_resource, relative_file_location_inside_enexa_dir, file_to_add, label_for_addition="File added"):
     print ("send uploaded file to enexa service ")
     print ("experiment_resource is :" + experiment_resource)
     print ("relative_file_location_inside_enexa_dir is :" + relative_file_location_inside_enexa_dir)
@@ -123,7 +123,7 @@ def add_resource_to_service(experiment_resource, relative_file_location_inside_e
 
     ttl_for_registering_the_file_upload_as_jsonld = turtle_to_jsonld(ttl_for_registering_the_file_upload)
 
-    with st.expander("Show message for registering the file upload"):
+    with st.expander("➕ " + label_for_addition):
         st.code(ttl_for_registering_the_file_upload, language="turtle")
         st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
 
@@ -641,7 +641,7 @@ def extract_cel_trained_kge_from_triplestore(triple_store_endpoint, graph_name, 
 
 
 def add_module_configuration_to_enexa_service(experiment_resource, relative_file_location_inside_enexa_dir,
-                                              uploaded_filename):
+                                              uploaded_filename, label_for_addition="File added"):
     print("add_module_configuration_to_enexa_service")
     # copy the file in share directory
     print("experiment_resource: " + experiment_resource)
@@ -669,7 +669,7 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
 
     ttl_for_registering_the_file_upload_as_jsonld = turtle_to_jsonld(ttl_for_registering_the_file_upload)
 
-    with st.expander("➕ File added"):
+    with st.expander("➕ " + label_for_addition):
         st.code(ttl_for_registering_the_file_upload, language="turtle")
         st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
 
@@ -738,19 +738,19 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
     }
     perform_cel(data, "Example: Tommy Hilfiger (Q634881), Dickies (Q114913), Globus (Q457503) vs. Tesco (Q487494), BASF (Q9401), Adidas (Q3895)", url, headers, label_dict)
     
-    # Second example: Tommy Hilfiger vs. Dickies, Globus
+    # Third example: Tommy Hilfiger vs. Dickies, Globus
     data = {
         "positives": ["https://www.wikidata.org/wiki/Q634881"], 
         "negatives": ["https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503"]
     }
     perform_cel(data, "Example: Tommy Hilfiger (Q634881) vs. Dickies (Q114913), Globus (Q457503)", url, headers, label_dict)
     
-    # Third example: Tesco, Globus vs. Tommy Hilfiger, Dickies
+    # Fourth example: Globus, Dickies vs. Tommy Hilfiger, Tesco
     data = {
-        "positives": ["https://www.wikidata.org/wiki/Q487494", "https://www.wikidata.org/wiki/Q457503"], 
-        "negatives": ["https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q114913"]
+        "positives": ["https://www.wikidata.org/wiki/Q457503", "https://www.wikidata.org/wiki/Q114913"], 
+        "negatives": ["https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q487494"]
     }
-    perform_cel(data, "Example: Tesco (Q487494), Globus (Q457503) vs. Tommy Hilfiger (Q634881), Dickies (Q114913)", url, headers, label_dict)
+    perform_cel(data, "Example: Globus (Q457503), Dickies (Q114913) vs. Tommy Hilfiger (Q634881), Tesco (Q487494)", url, headers, label_dict)
     
     # First example: BASF, Adidas vs. Bosch
     #data = {
@@ -793,7 +793,7 @@ def create_pretty_ce(class_expression, label_dict):
     return class_expression
 
 def start_cel_step(experiment_resource, owl_file_iri):
-    st.info("Starting class expression learning ...")
+    st.subheader("5️ Starting class expression learning ...")
     print("Starting class expression learning ... experiment_resource : " + str(experiment_resource) +" owl_file_iri: " +str(owl_file_iri))
     cel_experiment_data = experiment_data # create_experiment_data()
     cel_experiment_resource = cel_experiment_data["experiment_iri"]
@@ -806,7 +806,8 @@ def start_cel_step(experiment_resource, owl_file_iri):
     add_preproccessed_embedding_csv = add_module_configuration_to_enexa_service(
         cel_experiment_resource,
         cel_relative_file_location_inside_enexa_dir,
-        "Keci_entity_embeddings.csv")
+        "Keci_entity_embeddings.csv",
+        label_for_addition="Adding Keci embedding model")
     if (add_preproccessed_embedding_csv.status_code != 200):
         st.error("cannot add file")
     else:
@@ -832,6 +833,10 @@ def start_cel_step(experiment_resource, owl_file_iri):
                                                           "http://w3id.org/dice-research/enexa/ontology#containerId")
             #st.info("container_id_embeddings_step is : " + container_id_cel_step)
             print_container_logs(container_id_cel_step)
+            
+            st.write(
+                "✅ Module instance ({}) finished successfully.".format(
+                    container_id_cel_step))
 
             cel_trained_file_kge_iri = extract_cel_trained_kge_from_triplestore(META_DATA_ENDPOINT,
                                                                                 META_DATA_GRAPH_NAME,
@@ -910,6 +915,10 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
             # Update the text of the info box in the session state
             #st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
 
+        st.write(
+            "✅ Module instance ({}) finished successfully.".format(
+                cel_transform_step_module_instance_iri))
+
         # TODO SHOULD NOT BE HARDCODED
         owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
                                                        META_DATA_GRAPH_NAME,
@@ -917,7 +926,7 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
         start_cel_step(experiment_resource, owl_file_iri)
 
 def start_tentris(experiment_resource, repaired_a_box_iri):
-    st.info("Starting Tentris ...")
+    st.subheader("4️ Starting Tentris ...")
     tentris_experiment_data = experiment_data # create_experiment_data()
     tentris_experiment_resource = tentris_experiment_data["experiment_iri"]
     tentris_experiment_directory = tentris_experiment_data["experiment_folder"]
@@ -927,7 +936,8 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
     responce_add_wikidata5m = add_module_configuration_to_enexa_service(
         tentris_experiment_resource,
         tentris_relative_file_location_inside_enexa_dir,
-        DATASET_NAME_TENTRIS)
+        DATASET_NAME_TENTRIS,
+        label_for_addition="Adding Wikidata5M dataset file")
     if (responce_add_wikidata5m.status_code != 200):
         st.error("cannot add file: " + DATASET_NAME_TENTRIS)
     else:
@@ -947,7 +957,8 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed, "0.0.0.0:9080")
 
-        st.success("Tentris is ready",icon="✅")
+        st.write("✅ Tentris is ready.")
+        #st.success("Tentris is ready",icon="✅")
         triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
 
 	# BASF, Adidas, BOSCH, Tommy Hilfiger, Dickies, Globus, Tesco
@@ -993,7 +1004,8 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         responce_add_filteredwikidata5m = add_module_configuration_to_enexa_service(
             tentris_experiment_resource,
             tentris_relative_file_location_inside_enexa_dir,
-            filtered_wikidata5m_file_name)
+            filtered_wikidata5m_file_name,
+            label_for_addition="Adding generated Wikidata5M subset file")
         if (responce_add_wikidata5m.status_code != 200):
             st.error("cannot add file: " + filtered_wikidata5m_file_path)
         else:
@@ -1201,7 +1213,7 @@ def read_file(file_path, num_lines, keyword):
 
 
 def start_repair_step(experiment_resource, module_instance_id):
-    st.info("Starting knowledge graph repair ...")
+    st.subheader("3️ Starting knowledge graph repair ...")
 
     second_step_experiment_data = experiment_data # create_experiment_data()
     second_step_experiment_resource = second_step_experiment_data["experiment_iri"]
@@ -1219,7 +1231,8 @@ def start_repair_step(experiment_resource, module_instance_id):
     second_step_responce_configFile_resource = add_module_configuration_to_enexa_service(
         second_step_experiment_resource,
         second_step_relative_file_location_inside_enexa_dir,
-        "1-ontology_version_1.ttl")
+        "1-ontology_version_1.ttl",
+        label_for_addition="Adding ontology file")
     if (second_step_responce_configFile_resource.status_code != 200):
         st.error("cannot add file")
     else:
@@ -1247,13 +1260,17 @@ def start_repair_step(experiment_resource, module_instance_id):
                                                                "http://w3id.org/dice-research/enexa/ontology#containerId")
             #st.info("container_id_fixing_module is : " + container_id_fixing_module)
             changedlines = print_container_logs(container_id_fixing_module)
-            with st.expander("🔧 Fixed triples:"):
+            with st.expander("🔧 Fixed triples"):
                 for change in changedlines:
                     st.text(change)
 
-            st.success(
-                "Module instance ({}) finished successfully.".format(
-                    second_step_module_instance_iri), icon="✅")
+
+            st.write(
+                "✅ Module instance ({}) finished successfully.".format(
+                    second_step_module_instance_iri))
+            #st.success(
+            #    "Module instance ({}) finished successfully.".format(
+            #        second_step_module_instance_iri), icon="✅")
 
             # repaired_A_box_iri = extract_X_from_triplestore("http://w3id.org/dice-research/enexa/module/kg-fixing/result/fixedKG", META_DATA_ENDPOINT,
             #   META_DATA_GRAPH_NAME,
@@ -1273,7 +1290,7 @@ def print_container_logs(container_id):
     try:
         client = docker.from_env()
         container = client.containers.get(container_id)
-        with st.expander("📃 Logs for this container :" + str(container_id)):
+        with st.expander("📃 Module logs (" + str(container_id) + "):"):
             for log_line in container.logs(stream=True):
                 if str(log_line.decode("utf-8")).startswith("INFO: ******* Found inconsistency:") or str(
                         log_line.decode("utf-8")).startswith("INFO: ******* Apply Sound fix:"):
@@ -1292,7 +1309,7 @@ def read_container_logs_stop_when_reach_x(container_id, x):
     try:
         client = docker.from_env()
         container = client.containers.get(container_id)
-        with st.expander("📃 Logs for this container :" + str(container_id)):
+        with st.expander("📃 Module logs (" + str(container_id) + "):"):
             for log_line in container.logs(stream=True):
                 st.text(log_line)
                 if x in str(log_line.decode("utf-8")):
@@ -1311,6 +1328,8 @@ def get_the_status(SERVER_ENDPOINT, module_instance_iri, experiment_resource):
 
 if uploaded_files is not None and uploaded_files != []:
     for uploaded_file in uploaded_files:
+    
+        st.subheader("1️ Preparing...")
 
         skip_extraction = False # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
         extraction_previous_run = "http://example.org/enexa/4d4c7922-7ae8-4cb1-8e49-394d6670634b"
@@ -1327,7 +1346,8 @@ if uploaded_files is not None and uploaded_files != []:
 
         responce_configFile_resource = add_module_configuration_to_enexa_service(experiment_resource,
                                                                                  relative_file_location_inside_enexa_dir,
-                                                                                 "generation_parameters.json")
+                                                                                 "generation_parameters.json",
+                                                                                 label_for_addition="Adding extraction parameters file")
         if responce_configFile_resource.status_code != 200:
             st.error("error in upload configuration file ")
         else:
@@ -1356,7 +1376,8 @@ if uploaded_files is not None and uploaded_files != []:
 
             response_adding_uploaded_file = add_resource_to_service(experiment_resource,
                                                                     relative_file_location_inside_enexa_dir,
-                                                                    uploaded_filename)
+                                                                    uploaded_filename,
+                                                                    label_for_addition="Adding file with uploaded URLs")
             if response_adding_uploaded_file.status_code != 200:
                 st.error("Error while registering ENEXA configuration file upload. :cry:")
                 st.error(response_adding_uploaded_file.status_code + " " + str(response_adding_uploaded_file))
@@ -1368,11 +1389,13 @@ if uploaded_files is not None and uploaded_files != []:
 
                 # start a module (i.e., a new container instance of the demanded experiment will be started)
                 # st.info ("###configFile_resource is :" + str(generation_parameters_IRI))
-                st.info("Starting extraction module ...")
+                st.subheader("2️ Starting extraction module ...")
                 print("Starting extraction module ...")
 
-                response_start_module = start_extraction_module(experiment_resource, urls_to_process_iri,
+                if not skip_extraction:
+                    response_start_module = start_extraction_module(experiment_resource, urls_to_process_iri,
                                                                 generation_parameters_IRI)
+                
                 if not skip_extraction and response_start_module.status_code != 200:
                     st.error("Error while starting ENEXA task: {}.".format(response_start_module))
                 else:
@@ -1424,9 +1447,9 @@ if uploaded_files is not None and uploaded_files != []:
                     # progress_element_1.text("Waiting for result ({} sec) ... ".format(elapsedTime))
 
                     # progress_element_1.text("result is ready . elapsed time is ({} sec) ".format(elapsedTime))
-                    st.success(
-                        "Module instance ({}) finished successfully.".format(
-                            module_instance_iri))
+                    #st.success(
+                    #    "Module instance ({}) finished successfully.".format(
+                    #        module_instance_iri))
 
                     # waiting = True
                     # repair_step_button_pushed = False
@@ -1452,9 +1475,17 @@ if uploaded_files is not None and uploaded_files != []:
                     file_path = file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
 
                     lines = read_file(file_path,100,"BASF")
+                    file_content = ""
+                    for line in lines :
+                        file_content += line
                     with st.expander("⛏️ Extracted triples ("+file_path+")"):
-                        for line in lines :
-                            st.code(line, language='text')
+                        st.code(file_content, language='text')
+    
+                    file_content = ""
+
+                    st.write(
+                        "✅ Module instance ({}) finished successfully.".format(
+                            module_instance_iri))
                     start_repair_step(experiment_resource, extracted_file_iri)
 
         # st.markdown("#### Upload (preliminary) T-Box data")
@@ -1537,7 +1568,7 @@ def send_tentris_req():
     start_tentris("http://example.org/enexa/5dc9e661-6c55-4d52-96e3-96219873d14f",
                            "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
 
-st.button('Continue from Tentris', on_click=send_tentris_req)
+#st.button('Continue from Tentris', on_click=send_tentris_req)
 
 def continue_cel_deploy():
     global experiment_data
@@ -1548,4 +1579,4 @@ def continue_cel_deploy():
     cel_trained_heuristics_file_iri = "http://example.org/enexa/5cd308db-97a0-4883-89e6-25b4292495ca"
     start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_heuristics_file_iri)
 
-st.button('Continue from CEL-Deploy', on_click=continue_cel_deploy)
+#st.button('Continue from CEL-Deploy', on_click=continue_cel_deploy)
