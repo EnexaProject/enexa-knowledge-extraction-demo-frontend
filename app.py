@@ -26,6 +26,12 @@ from SPARQLWrapper import SPARQLWrapper
 logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
+#opening the image
+image = Image.open('images/screenshot.png')
+
+#displaying the image on streamlit app
+st.image(image, caption='Enter any caption here')
+
 # config
 SERVER_ENDPOINT = config("SERVER_ENDPOINT", default="http://localhost:8080")
 print("SERVER_ENDPOINT is :" + SERVER_ENDPOINT)
@@ -1487,13 +1493,12 @@ if uploaded_files is not None and uploaded_files != []:
 
                     #lines = read_file(file_path, 200, "BASF")
                     lines = read_file(file_path, 200)
-                    file_content = ""
-                    for line in lines :
-                        file_content += line
+                    single_string = "\n".join(lines)
+                    # file_content = ""
+                    # for line in lines :
+                    #     file_content += line
                     with st.expander("⛏️ Extracted triples ("+file_path+")"):
-                        st.code(file_content, language='text')
-    
-                    file_content = ""
+                        st.code(single_string, language='text')
 
                     st.write(
                         "✅ Module instance ({}) finished successfully.".format(
