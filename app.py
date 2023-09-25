@@ -803,7 +803,7 @@ def create_pretty_ce(class_expression, label_dict):
 
 def start_cel_step(experiment_resource, owl_file_iri):
 
-    st.subheader("5️ Starting class expression learning ...")
+    st.subheader("5️ Running class expression learning")
     print("Starting class expression learning ... experiment_resource : " + str(experiment_resource) +" owl_file_iri: " +str(owl_file_iri))
     cel_experiment_data = experiment_data # create_experiment_data()
 
@@ -938,7 +938,9 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
 
 
 def start_tentris(experiment_resource, repaired_a_box_iri):
-    st.subheader("4️ Starting Tentris ...")
+    st.subheader("3️ Running knowledge graph embedding module")
+    st.write("This step is skipped in this demo. Instead we use a pre-generated model.")
+    st.subheader("4️ Starting Tentris ")
     tentris_experiment_data = experiment_data # create_experiment_data()
     tentris_experiment_resource = tentris_experiment_data["experiment_iri"]
     tentris_experiment_directory = tentris_experiment_data["experiment_folder"]
@@ -1228,7 +1230,7 @@ def read_file(file_path, num_lines):  # , keyword):
 
 
 def start_repair_step(experiment_resource, module_instance_id):
-    st.subheader("3️ Starting knowledge graph repair ...")
+    st.subheader("2️ Running knowledge graph repair module")
 
     second_step_experiment_data = experiment_data # create_experiment_data()
     second_step_experiment_resource = second_step_experiment_data["experiment_iri"]
@@ -1344,7 +1346,8 @@ def get_the_status(SERVER_ENDPOINT, module_instance_iri, experiment_resource):
 if uploaded_files is not None and uploaded_files != []:
     for uploaded_file in uploaded_files:
     
-        st.subheader("1️ Preparing...")
+        #st.subheader(" Preparing...")
+        st.subheader("1️ Running extraction module")
 
         skip_extraction = False # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
         extraction_previous_run = "http://example.org/enexa/4d4c7922-7ae8-4cb1-8e49-394d6670634b"
@@ -1404,7 +1407,6 @@ if uploaded_files is not None and uploaded_files != []:
 
                 # start a module (i.e., a new container instance of the demanded experiment will be started)
                 # st.info ("###configFile_resource is :" + str(generation_parameters_IRI))
-                st.subheader("2️ Starting extraction module ...")
                 print("Starting extraction module ...")
 
                 if not skip_extraction:
