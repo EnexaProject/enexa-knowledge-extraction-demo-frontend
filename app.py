@@ -26,12 +26,6 @@ from SPARQLWrapper import SPARQLWrapper
 logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
-#opening the image
-image = Image.open('images/screenshot.png')
-
-#displaying the image on streamlit app
-st.image(image, caption='Enter any caption here')
-
 # config
 SERVER_ENDPOINT = config("SERVER_ENDPOINT", default="http://localhost:8080")
 print("SERVER_ENDPOINT is :" + SERVER_ENDPOINT)
@@ -67,6 +61,17 @@ print("DATASET_NAME is :" + str(DATASET_NAME_TENTRIS))
 ENEXA_LOGO = "https://raw.githubusercontent.com/EnexaProject/enexaproject.github.io/main/images/enexacontent/enexa_logo_v0.png?raw=true"
 ENEXA_EXPERIMENT_SHARED_DIRECTORY_LITERAL = "http://w3id.org/dice-research/enexa/ontology#sharedDirectory"
 
+# Streamlit init
+st.set_page_config(layout="wide", initial_sidebar_state="expanded",
+                   page_title="ENEXA Integration Demo",
+                   #    page_icon=Image.open(ENEXA_LOGO)
+                   )
+##opening the image
+#image = Image.open('images/screenshot.png')
+
+##displaying the image on streamlit app
+#st.image(image, caption='Enter any caption here')
+
 
 def write_file_to_folder(folder, filename, content):
     try:
@@ -85,13 +90,6 @@ def write_file_to_folder(folder, filename, content):
             f.write(content)
     except Exception as exc:
         print (exc)
-
-
-st.set_page_config(layout="wide", initial_sidebar_state="expanded",
-                   page_title="ENEXA Integration Demo",
-                   #    page_icon=Image.open(ENEXA_LOGO)
-                   )
-
 
 def create_experiment_data():
     """
@@ -1495,12 +1493,12 @@ if uploaded_files is not None and uploaded_files != []:
 
                     #lines = read_file(file_path, 200, "BASF")
                     lines = read_file(file_path, 200)
-                    single_string = "\n".join(lines)
+                    #single_string = "\n".join(lines)
                     # file_content = ""
                     # for line in lines :
                     #     file_content += line
                     with st.expander("⛏️ Extracted triples ("+file_path+")"):
-                        st.code(single_string, language='text')
+                        st.code("".join(lines), language='text')
 
                     st.write(
                         "✅ Module instance ({}) finished successfully.".format(
