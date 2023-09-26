@@ -66,12 +66,6 @@ st.set_page_config(layout="wide", initial_sidebar_state="expanded",
                    page_title="ENEXA Integration Demo",
                    #    page_icon=Image.open(ENEXA_LOGO)
                    )
-##opening the image
-#image = Image.open('images/screenshot.png')
-
-##displaying the image on streamlit app
-#st.image(image, caption='Enter any caption here')
-
 
 def write_file_to_folder(folder, filename, content):
     try:
@@ -457,6 +451,12 @@ def print_banner_to_console():
 
 st.title("ENEXA Integration Demo")
 
+##opening the image
+image = Image.open('images/Enexa-Demo-Sep-23.png')
+##displaying the image on streamlit app
+st.image(image)#, caption='Enter any caption here'
+
+
 # print_banner_to_console()
 
 st.markdown(
@@ -727,7 +727,9 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
         "Q114913" : "Dickies",
         "Q507619" : "retail chain",
         "Q487494" : "Tesco",
-        "Q891723" : "public company" }
+        "Q891723" : "public company",
+        "Q210167" : "video game developer",
+        "Q180846" : "supermarket", }
 
     # First example: BASF, Adidas vs. Bosch
     data = {
@@ -736,28 +738,28 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
         "negatives": ["https://www.wikidata.org/wiki/Q234021"]
 
     }
-    perform_cel(data, "Example: BASF (Q9401), Adidas (Q3895) vs. Bosch (Q234021)", url, headers, label_dict)
+    perform_cel(data, "$E^+=\\Big\{$BASF (Q9401), Adidas (Q3895)$\\Big\}, E^-=\\Big\{$Bosch (Q234021)$\\Big\}$", url, headers, label_dict)
     
     # Second example: Tommy Hilfiger, Dickies, Globus vs. Tesco, BASF, Adidas
     data = {
         "positives": ["https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503"], 
         "negatives": ["https://www.wikidata.org/wiki/Q487494", "https://www.wikidata.org/wiki/Q9401", "https://www.wikidata.org/wiki/Q3895"]
     }
-    perform_cel(data, "Example: Tommy Hilfiger (Q634881), Dickies (Q114913), Globus (Q457503) vs. Tesco (Q487494), BASF (Q9401), Adidas (Q3895)", url, headers, label_dict)
+    perform_cel(data, "$E^+=\\Big\{$Tommy Hilfiger (Q634881), Dickies (Q114913), Globus (Q457503)$\\Big\}, E^-=\\Big\{$Tesco (Q487494), BASF (Q9401), Adidas (Q3895)$\\Big\}$", url, headers, label_dict)
     
     # Third example: Tommy Hilfiger vs. Dickies, Globus
     data = {
         "positives": ["https://www.wikidata.org/wiki/Q634881"], 
         "negatives": ["https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503"]
     }
-    perform_cel(data, "Example: Tommy Hilfiger (Q634881) vs. Dickies (Q114913), Globus (Q457503)", url, headers, label_dict)
+    perform_cel(data, "$E^+=\\Big\{$Tommy Hilfiger (Q634881)$\\Big\}, E^-=\\Big\{$Dickies (Q114913), Globus (Q457503)$\\Big\}$", url, headers, label_dict)
     
-    # Fourth example: Globus, Dickies vs. Tommy Hilfiger, Tesco
+    # Fourth example: Tommy Hilfiger, Dickies vs. Globus, Tesco, 
     data = {
-        "positives": ["https://www.wikidata.org/wiki/Q457503", "https://www.wikidata.org/wiki/Q114913"], 
-        "negatives": ["https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q487494"]
+        "positives": ["https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q114913"], 
+        "negatives": ["https://www.wikidata.org/wiki/Q457503", "https://www.wikidata.org/wiki/Q487494", "https://www.wikidata.org/wiki/Q63335", "https://www.wikidata.org/wiki/Q309031"]
     }
-    perform_cel(data, "Example: Globus (Q457503), Dickies (Q114913) vs. Tommy Hilfiger (Q634881), Tesco (Q487494)", url, headers, label_dict)
+    perform_cel(data, "$E^+=\\Big\{$Globus (Q457503), Dickies (Q114913)$\\Big\}, E^-=\\Big\{$Tommy Hilfiger (Q634881), Tesco (Q487494), Foot Locker (Q63335), Lacoste (Q309031)$\\Big\}$", url, headers, label_dict)
     
     # First example: BASF, Adidas vs. Bosch
     #data = {
@@ -767,6 +769,7 @@ def start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri,
     #perform_cel(data, "Example: BASF (Q9401), Adidas (Q3895) vs. Bosch (Q234021)", url, headers, label_dict)
     
     st.success("Done!",icon="🏁")
+        
     
 def perform_cel(data, label, url, headers, label_dict):
     response = requests.post(url, headers=headers, data=json.dumps(data))
@@ -971,8 +974,8 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         #st.success("Tentris is ready",icon="✅")
         triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
 
-	# BASF, Adidas, BOSCH, Tommy Hilfiger, Dickies, Globus, Tesco
-        all_iri = ["https://www.wikidata.org/wiki/Q9401", "https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q234021", "https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503", "https://www.wikidata.org/wiki/Q487494"]
+	# BASF, Adidas, BOSCH, Tommy Hilfiger, Dickies, Globus, Tesco, Lacoste, Foot Locker, Bohemia Interactive
+        all_iri = ["https://www.wikidata.org/wiki/Q9401", "https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q234021", "https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503", "https://www.wikidata.org/wiki/Q487494", "https://www.wikidata.org/wiki/Q309031", "https://www.wikidata.org/wiki/Q63335", "https://www.wikidata.org/wiki/Q890779"]
 
         # query_str_first = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?s { "+all_iri+" }    ?s ?p ?o .}"
         subject_graph = Graph()
@@ -1581,22 +1584,23 @@ if uploaded_files is not None and uploaded_files != []:
 # st.button('send cel request', on_click=send_cel_req)
 
 
-# def send_tentris_req():
-#     start_tentris("http://example.org/enexa/5dc9e661-6c55-4d52-96e3-96219873d14f",
-#                   "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
-#
-#
-# st.button('continue from tentris', on_click=send_tentris_req)
+def send_tentris_req():
+    global experiment_data
+    experiment_data = create_experiment_data()
+    start_tentris("http://example.org/enexa/5dc9e661-6c55-4d52-96e3-96219873d14f",
+                  "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
 
 
-# def continue_cel_deploy():
-#     global experiment_data
-#     experiment_data = create_experiment_data()
-#     experiment_resource = experiment_data["experiment_iri"]
-#     owl_file_iri = "http://example.org/enexa/0e433664-3196-480f-9600-7672f3e5ead4"
-#     embedding_csv_iri = "http://example.org/enexa/50732c5e-5a6d-4060-9737-73742847aae3"
-#     cel_trained_heuristics_file_iri = "http://example.org/enexa/5cd308db-97a0-4883-89e6-25b4292495ca"
-#     start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_heuristics_file_iri)
+st.button('Continue from Step 4 (Tentris)', on_click=send_tentris_req)
 
-#st.button('Continue from CEL-Deploy', on_click=continue_cel_deploy)
+def continue_cel_deploy():
+    global experiment_data
+    experiment_data = create_experiment_data()
+    experiment_resource = experiment_data["experiment_iri"]
+    owl_file_iri = "http://example.org/enexa/13500f8a-c091-4816-8ff5-bc70049bfba4"
+    embedding_csv_iri = "http://example.org/enexa/50c7f2f9-ef34-435b-9443-8589138ad9ed"
+    cel_trained_heuristics_file_iri = "http://example.org/enexa/67ac8bd1-23a1-4495-b171-5fef4579ab57"
+    start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_heuristics_file_iri)
+
+st.button('Continue from Step 5.2 (CEL-Deploy)', on_click=continue_cel_deploy)
 
