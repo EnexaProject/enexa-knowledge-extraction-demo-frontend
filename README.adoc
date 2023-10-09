@@ -103,7 +103,7 @@ Run the following bash script (`download-module-files.sh`) and place all files i
    sudo docker run -d --name enexaservice --network enexaNet -v /data/enexa/shared:/home/shared -v /var/run/docker.sock:/var/run/docker.sock -v /data/enexa/metadata:/home/metadata -e ENEXA_META_DATA_ENDPOINT=[metadata store endpoint]/[dataset name] -e ENEXA_META_DATA_GRAPH=[graph name] -e ENEXA_MODULE_DIRECTORY=/home/metadata -e ENEXA_RESOURCE_NAMESPACE=http://example.org/enexa/ -e ENEXA_SERVICE_URL=http://enexaservice:8080/ -e ENEXA_SHARED_DIRECTORY=/data/enexa/shared -e DOCKER_NET_NAME=enexaNet hub.cs.upb.de/enexa/images/enexa-service-demo:1.0.0
 
 
-* Copy Required Files to the Shared Directory:
+* Copy Required Files to the Shared Directory: (from here : https://files.dice-research.org/projects/ENEXA/FirstDemoFiles/)
 
    ** `generation_parameters.json`
    ** `wikidata5M.ttl.gz`
