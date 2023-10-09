@@ -52,8 +52,12 @@ docker run -p 8501:8501 enexa-knowledge-extraction-demo:latest
 
 == For Developers
 
-Here are the steps rewritten for clarity:
+If you want to develop on the frontend, you can use the following commands to start the required services:
 
+* Start the Fuseki triplestore, cf. https://github.com/EnexaProject/enexa-service/tree/develop-implementService-startContainer#triplestore
+* Start the ENEXA service, cf. https://github.com/EnexaProject/enexa-service/tree/develop-implementService-startContainer#starting-the-enexa-service
+
+== run demo with all containers
 1. **Run the Demo with All Containers:**
 
    If you want to run this demo as a container on the VM, follow these steps:
