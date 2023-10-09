@@ -17,8 +17,14 @@ The following parameters are required and can be defined in the link:./.env[`.en
 
 * `SERVER_ENDPOINT`
 * `ENEXA_SHARED_DIRECTORY`
-* `ENEXA_WRITEABLE_DIRECTORY` 
-* `SLEEP_IN_SECONDS` 
+* `SLEEP_IN_SECONDS`
+* `META_DATA_ENDPOINT`
+* `META_DATA_GRAPH_NAME`
+* `EMBEDDINGS_BATCH_SIZE`
+* `EMBEDDINGS_DIM`
+* `EMBEDDINGS_EPOCH_NUM`
+* `DATASET_NAME`
+* `DATASET_NAME_TENTRIS`
 
 Note, for all of these variables defaults are defined in the link:./app.py[app.py] that are intended to be used for development purposes only.
 
@@ -50,3 +56,77 @@ If you want to develop on the frontend, you can use the following commands to st
 
 * Start the Fuseki triplestore, cf. https://github.com/EnexaProject/enexa-service/tree/develop-implementService-startContainer#triplestore 
 * Start the ENEXA service, cf. https://github.com/EnexaProject/enexa-service/tree/develop-implementService-startContainer#starting-the-enexa-service
+
+== run demo with all containers
+if wou want run this themo as a container on the vm these are the steps
+1. pull all images
+* hub.cs.upb.de/enexa/images/enexa-cel-deploy-module:1.0.0
+* hub.cs.upb.de/enexa/images/enexa-cel-train-module:1.0.0
+* hub.cs.upb.de/enexa/images/enexa-dice-embeddings:1.0.1
+* hub.cs.upb.de/enexa/images/enexa-extraction-module:1.0.0
+* hub.cs.upb.de/enexa/images/enexa-kg-fixing-module:1.0.0
+* hub.cs.upb.de/enexa/images/enexa-tentris-module:0.2.0-SNAPSHOT-1
+* hub.cs.upb.de/enexa/enexa-transform-module:0.0.1
+
+also run this bash (download-module-files.sh) and put all file here "/data/enexa/metadata" or make an equivalent directory and use it in next steps
+
+2. make a docker network
+```bash
+docker network create -d enexaNet .
+```
+
+3. run the metadata triple store
+first make sure this path exist "/data/fusekiData" or replace it with a valid path
+```bash
+sudo docker run -d --name fuseki-devwd --network enexaNet -p 3030:3030 -e ADMIN_PASSWORD=[password] -v /data/fusekiData:/fuseki stain/jena-fuseki
+```
+
+4. open the fuseki web console at port 3030 then use username: admin and password [password] to login
+add new  dataset (ex: mydataset) it is [dataset name]
+then select "add data" and push "+select file" button and select all the modules you have downloaded before ( with running download-module-files.sh )
+do not forger to set a Dataset graph name (ex:http://example.org/meta-data)  [graph name]
+
+5. run the enexa service image , make sure this path is valid or replace it with valid one "/data/enexa/shared, /data/enexa/metadata"
+
+```bash
+sudo docker run -d --name enexaservice --network enexaNet -v /data/enexa/shared:/home/shared -v /var/run/docker.sock:/var/run/docker.sock -v /data/enexa/metadata:/home/metadata -e ENEXA_META_DATA_ENDPOINT=[metadata store endpoint]/[dataset name]  -e ENEXA_META_DATA_GRAPH=[graph name] -e  ENEXA_MODULE_DIRECTORY=/home/metadata -e  ENEXA_RESOURCE_NAMESPACE=http://example.org/enexa/ -e  ENEXA_SERVICE_URL=http://enexaservice:8080/ -e  ENEXA_SHARED_DIRECTORY=/data/enexa/shared -e DOCKER_NET_NAME=enexaNet hub.cs.upb.de/enexa/images/enexa-service-demo:1.0.0
+```
+
+6. copy these files in share directory (https://files.dice-research.org/projects/ENEXA/FirstDemoFiles/)
+* generation_parameters.json
+* wikidata5M.ttl.gz
+* wikidata5M.nt
+* Keci_entity_embeddings.csv
+* 1-ontology_version_1.ttl
+
+7. run the demo container
+as docker compose file
+```bash
+version: "3.0"
+services:
+  demo:
+    image: hub.cs.upb.de/enexa/images/enexa-ui-demo:1.0.0-tentris-demo
+    ports:
+      - "8080:8501"
+    volumes:
+      - type: bind
+        source: /data/enexa/shared
+        target: /home/shared
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SERVER_ENDPOINT=http://enexaservice:8080
+      - META_DATA_ENDPOINT=http://fuseki-devwd:3030/mydataset
+      - ENEXA_SHARED_DIRECTORY=/home/shared
+      - DATASET_NAME_TENTRIS=wikidata5M.nt
+    networks:
+      - enexaNet
+
+networks:
+  enexaNet:
+    external: true
+    name: enexaNet
+```
+or as a docker run command
+```
+sudo docker run -d -p 8080:8501 --network enexaNet -v /data/enexa/shared:/home/shared hub.cs.upb.de/enexa/images/enexa-ui-demo:1.0.0-tentris-demo
+```
