@@ -62,15 +62,16 @@ If you want to run this demo as a container on the VM, follow these steps
 
 * Pull all required Docker images:
 
-    ** `hub.cs.upb.de/enexa/images/enexa-cel-deploy-module:1.0.0`
-    ** `hub.cs.upb.de/enexa/images/enexa-cel-train-module:1.0.0`
-    ** `hub.cs.upb.de/enexa/images/enexa-dice-embeddings:1.0.1`
-    ** `hub.cs.upb.de/enexa/images/enexa-extraction-module:1.0.0`
-    ** `hub.cs.upb.de/enexa/images/enexa-kg-fixing-module:1.0.0`
-    ** `hub.cs.upb.de/enexa/images/enexa-tentris-module:0.2.0-SNAPSHOT-1`
-    ** `hub.cs.upb.de/enexa/enexa-transform-module:0.0.1`
+    docker pull hub.cs.upb.de/enexa/images/enexa-cel-deploy-module:1.0.0
+    docker pull hub.cs.upb.de/enexa/images/enexa-cel-train-module:1.0.0
+    docker pull hub.cs.upb.de/enexa/images/enexa-dice-embeddings:1.0.1
+    docker pull hub.cs.upb.de/enexa/images/enexa-extraction-module:1.0.0
+    docker pull hub.cs.upb.de/enexa/images/enexa-kg-fixing-module:1.0.0
+    docker pull hub.cs.upb.de/enexa/images/enexa-tentris-module:0.2.0-SNAPSHOT-1
+    docker pull hub.cs.upb.de/enexa/enexa-transform-module:0.0.1
 
-Run the following bash script (`download-module-files.sh`) and place all files in the directory `/data/enexa/metadata`, or create an equivalent directory for the next steps.
+
+Run the following bash script (`download-module-files.sh`) for downloading the required metadata. then copy all downloaded files in the directory `/data/enexa/metadata`, or create an equivalent directory for the next steps.
 
 * Create a Docker Network:
 
