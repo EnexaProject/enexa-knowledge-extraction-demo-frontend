@@ -94,7 +94,7 @@ Run the following bash script (`download-module-files.sh`) for downloading the r
    - Username: admin
    - Password: [password]
 
-   Add a new dataset (e.g., `mydataset`) with the desired dataset name. Then, select "Add Data" and click the "+ Select File" button to choose all the modules you downloaded earlier using the `download-module-files.sh` script. Don't forget to specify a Dataset graph name (e.g., `http://example.org/meta-data`) as `[graph name]`.
+   Add a new dataset (e.g., `mydataset`) with the desired dataset name.
 
 * Run the Enexa Service Image:
 
