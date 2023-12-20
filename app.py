@@ -26,6 +26,8 @@ from SPARQLWrapper import SPARQLWrapper
 logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
+appName = "app2"
+
 # config
 SERVER_ENDPOINT = config("SERVER_ENDPOINT", default="http://localhost:8080")
 print("SERVER_ENDPOINT is :" + SERVER_ENDPOINT)
@@ -89,8 +91,12 @@ def create_experiment_data():
     """
     returns the data of a fresh experiment, with experiment IRI and ...
   """
-    response = requests.post(SERVER_ENDPOINT + "/start-experiment", data="")
+    response = requests.post(SERVER_ENDPOINT + "/start-experiment", data="", headers={"Content-Type": "application/ld+json", "Accept": "application/ld+json"})
     if response.status_code == 200 or response.status_code == 201:
+        print(response.text)
+
+        #st.info(response.text)
+
         with st.expander("🧪 Experiment started"):
             st.code(pprint.pformat(response.json(), indent=2), language="json")
         return {
@@ -126,7 +132,7 @@ def add_resource_to_service(experiment_resource, relative_file_location_inside_e
         st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
 
     response = requests.post(SERVER_ENDPOINT + "/add-resource", data=ttl_for_registering_the_file_upload_as_jsonld,
-                             headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
+                                 headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
     print("file added and the response is :" + str(response))
     return response
 
@@ -228,6 +234,8 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/transform/0.0.1> ;
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
+    #st.info("start_module_message_as_jsonld : "+start_module_message_as_jsonld)
+
     with st.expander("▶️ Querying the ENEXA service to start the transformation module."):
         st.code(start_module_message, language="turtle")
         st.code(start_module_message_as_jsonld, language="json")
@@ -235,6 +243,9 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/transform/0.0.1> ;
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
                                           headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
+
+    #st.info("responce is "+ response_start_module.text )
+    #st.info("responce status is "+ str(response_start_module.status_code))
     return response_start_module
 
 
@@ -506,7 +517,7 @@ def extract_id_from_turtle(turtle_text):
 
 
 def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_instance_iri):
-    print("extract_X_from_triplestore")
+    #st.info("extract_X_from_triplestore"+str(module_instance_iri))
     g = Graph()
     sparql = SPARQLWrapper(triple_store_endpoint)
     query_str = " SELECT ?iri \n WHERE {\n GRAPH <" + graph_name + "> {\n <" + module_instance_iri + "> <" + X + "> ?iri. } }"
@@ -648,21 +659,30 @@ def extract_cel_trained_kge_from_triplestore(triple_store_endpoint, graph_name, 
 
 def add_module_configuration_to_enexa_service(experiment_resource, relative_file_location_inside_enexa_dir,
                                               uploaded_filename, label_for_addition="File added"):
-    print("add_module_configuration_to_enexa_service")
+    st.info("start add configuration ")
+    st.info("add_module_configuration_to_enexa_service")
     # copy the file in share directory
-    print("experiment_resource: " + experiment_resource)
-    print("relative_file_location_inside_enexa_dir: " + relative_file_location_inside_enexa_dir)
-    print("uploaded_filename: " + uploaded_filename)
+    st.info("experiment_resource: " + experiment_resource)
+    st.info("relative_file_location_inside_enexa_dir: " + relative_file_location_inside_enexa_dir)
+    st.info("uploaded_filename: " + uploaded_filename)
+
+    # Split the experimentIRI using "/"
+    path_elements = experiment_resource.split("/")
+
+    # Get the last element of the split path
+    experimentIRI = path_elements[-1]
+    print("experimentIRI is : "+ experimentIRI)
 
     # if path is not there create it
-    path_to_check = ENEXA_SHARED_DIRECTORY + "/" + experiment_resource.replace("http://", "").replace(
-        "enexa-dir://", "")
+    path_to_check = os.path.join(ENEXA_SHARED_DIRECTORY,appName ,experimentIRI)
+
     print("check this path " + path_to_check)
     if not os.path.exists(path_to_check):
         os.makedirs(path_to_check)
-    shutil.copyfile(ENEXA_SHARED_DIRECTORY + "/" + uploaded_filename,
-                    ENEXA_SHARED_DIRECTORY + "/" + experiment_resource.replace("http://", "").replace(
-                        "enexa-dir://", "") + "/" + uploaded_filename)
+    st.info("copy from "+os.path.join (ENEXA_SHARED_DIRECTORY , uploaded_filename) + " to " + os.path.join(ENEXA_SHARED_DIRECTORY , appName ,experimentIRI  , uploaded_filename))
+
+    shutil.copyfile(os.path.join (ENEXA_SHARED_DIRECTORY , uploaded_filename),
+                    os.path.join(ENEXA_SHARED_DIRECTORY , appName ,experimentIRI  , uploaded_filename))
     # add resource
     ttl_for_registering_the_file_upload = """
     @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
@@ -681,7 +701,7 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
 
     response = requests.post(SERVER_ENDPOINT + "/add-resource", data=ttl_for_registering_the_file_upload_as_jsonld,
                              headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
-    print("file added and the response is :" + str(response))
+    st.info("file added and the response is :" + str(response))
     return response
 
 
@@ -860,8 +880,7 @@ def start_cel_step(experiment_resource, owl_file_iri):
 def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri):
     # transform nt file to owl
     # st.info("starting cel transform step experiment_resource : "+experiment_resource+" repaired_abox_iri : " +repaired_abox_iri+" wikidata5m_iri : "+wikidata5m_iri)
-    print(
-        "starting cel transform step experiment_resource : " + experiment_resource + " repaired_abox_iri : " + repaired_abox_iri + " wikidata5m_iri : " + wikidata5m_iri)
+    st.info("starting cel transform step experiment_resource : " + experiment_resource + " repaired_abox_iri : " + repaired_abox_iri + " wikidata5m_iri : " + wikidata5m_iri)
     cel_transform_experiment_data = experiment_data # create_experiment_data()
     cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
     cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
@@ -894,10 +913,14 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
 
     #    wikidata5m_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
     response_transform_step = start_cel_transform_module(experiment_resource, repaired_abox_iri, wikidata5m_iri)
+    #st.info(str(response_transform_step.status_code))
     if (response_transform_step.status_code != 200):
         st.error("error in running cel transform module")
     else:
+        #st.info(" start cel transform strp")
         cel_transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
+        #st.info(" cel_transform_step_module_instance_iri " + cel_transform_step_module_instance_iri)
+
         if cel_transform_step_module_instance_iri:
             print("id:", cel_transform_step_module_instance_iri)
         else:
@@ -906,10 +929,11 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
         # st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
         # st.info("experiment_resource is :" + experiment_resource)
 
+        #st.success("get status experiment_resource is : "+experiment_resource)
         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
                                                                cel_transform_step_module_instance_iri,
                                                                experiment_resource)
-
+        print("status is : "+response_check_module_instance_status.text)
         # st.info("response_check_module_instance_status code" + str(response_check_module_instance_status.status_code))
 
         # Store the text of the info box in the session state
@@ -922,6 +946,7 @@ def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_
             response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
                                                                    cel_transform_step_module_instance_iri,
                                                                    experiment_resource)
+            print("status is : " + response_check_module_instance_status.text)
             time.sleep(SLEEP_IN_SECONDS)
             elapsedTime = elapsedTime + SLEEP_IN_SECONDS
             # Update the text of the info box in the session state
@@ -1021,7 +1046,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         if (responce_add_wikidata5m.status_code != 200):
             st.error("cannot add file: " + filtered_wikidata5m_file_path)
         else:
-            # st.info("graph add to service ")
+            st.info("graph add to service ")
 
             wikidata5m_iri = extract_id_from_turtle(responce_add_filteredwikidata5m.text)
 
@@ -1340,8 +1365,17 @@ def read_container_logs_stop_when_reach_x(container_id, x):
 
 
 def get_the_status(SERVER_ENDPOINT, module_instance_iri, experiment_resource):
-    return requests.get(
-        SERVER_ENDPOINT + "/container-status?moduleInstanceIRI=" + module_instance_iri + "&experimentIRI=" + experiment_resource)
+    status_container_endpoint = SERVER_ENDPOINT + "/container-status"
+    status_module_message_as_json  = {
+        "moduleInstanceIRI": module_instance_iri,
+        "experimentResource": experiment_resource
+    }
+    #st.info(json.dumps(status_module_message_as_json))
+    return requests.post(status_container_endpoint, data=json.dumps(status_module_message_as_json),
+                                          headers={"Content-Type": "application/json", "Accept": "text/turtle"})
+
+
+    #return requests.get(SERVER_ENDPOINT + "/container-status?moduleInstanceIRI=" + module_instance_iri + "&experimentIRI=" + experiment_resource)
 
 
 if uploaded_files is not None and uploaded_files != []:
@@ -1354,6 +1388,7 @@ if uploaded_files is not None and uploaded_files != []:
         extraction_previous_run = "http://example.org/enexa/4d4c7922-7ae8-4cb1-8e49-394d6670634b"
         # create experiment instance
         experiment_data = create_experiment_data()
+
         experiment_resource = experiment_data["experiment_iri"]
         experiment_directory = experiment_data["experiment_folder"]
         # TODO
