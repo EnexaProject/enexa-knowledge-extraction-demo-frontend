@@ -1,0 +1,23 @@
+# Don't change this file! It is generated based on module.ttl.template.
+@base           <http://w3id.org/dice-research/enexa/module/tentris/> .
+@prefix alg:    <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+@prefix dcat:   <http://www.w3.org/ns/dcat#> .
+@prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+@prefix iana-a: <https://www.iana.org/assignments/media-types/application/> .
+@prefix iana-t: <https://www.iana.org/assignments/media-types/text/> .
+@prefix hobbit: <http://w3id.org/hobbit/vocab#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+<0.2.0-SNAPSHOT-1> a enexa:Module ;
+	rdfs:label "ENEXA Transformation Module"@en ;
+	rdfs:comment "This module allows the transformation and concatenation of RDF datasets."@en ;
+	hobbit:image <urn:container:docker:image:hub.cs.upb.de/enexa/images/enexa-tentris-module:0.2.0-SNAPSHOT-1> ;
+	alg:parameter <parameter/file> .
+
+<parameter/file> a alg:Parameter ;
+	rdfs:label "Input dataset" ;
+	rdfs:comment "An RDF dataset that is loaded into the triple store on start up." .	
+
