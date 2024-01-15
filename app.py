@@ -1043,7 +1043,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
             tentris_relative_file_location_inside_enexa_dir,
             filtered_wikidata5m_file_name,
             label_for_addition="Adding generated Wikidata5M subset file")
-        if (responce_add_wikidata5m.status_code != 200):
+        if (responce_add_filteredwikidata5m.status_code != 200):
             st.error("cannot add file: " + filtered_wikidata5m_file_path)
         else:
             st.info("graph add to service ")

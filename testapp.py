@@ -108,7 +108,17 @@ app.layout = html.Div([
     dcc.Store(id='state-uploadedFile'),
     dcc.Store(id='state-extraction'),
     dcc.Store(id='state-repair'),
-    dcc.Store(id='state-tentris')
+    dcc.Store(id='state-tentris'),
+    dcc.Interval(
+            id='interval-component-tentris',
+            interval=3*1000, # in milliseconds
+            n_intervals=0,
+            disabled=True
+        ),
+    dcc.Textarea(id='tentris_docker_log', value='', readOnly=True, style={'width': '100%', 'height': '300px'}),
+    html.Div([html.Label('status filtering', id='lbl-tentris-filter-status'), html.Button('Start Tentris filtering 5m file', id='btn-start-filter-5m', n_clicks=0, disabled=True)], id='levelfilter5m'),
+    dcc.Store(id='state-tentris-filter'),
+    html.Div([html.Label('status celtransform', id='lbl-cel-transform-status'), html.Button('Start CEL transform', id='btn-start-cel-transform', n_clicks=0, disabled=True)], id='levelceltransform'),
 ])
 
 
@@ -471,21 +481,102 @@ def update_ui(line):
         html.Mark('Docker logs:')
     ])
 
+
 def read_container_logs_stop_when_reach_x(container_id, x):
-    # st.info("looking for "+x)
     returnlines = []
+    is_finished = False
     try:
         client = docker.from_env()
         container = client.containers.get(container_id)
-        for log_line in container.logs(stream=True):
-            update_ui(log_line)
-            if x in str(log_line.decode("utf-8")):
-                return
+
+        # Retrieve existing logs
+        existing_logs = container.logs().decode('utf-8').split('\n')
+        returnlines.extend(existing_logs)
+
+        # Stream new logs
+        for log_line in container.logs(stream=True, follow=False):
+            returnlines.append(log_line.decode('utf-8'))
+            print(log_line.decode('utf-8'))
+            if x in log_line.decode('utf-8'):
+                is_finished = True
+                break  # Stop streaming logs if x is found
     except docker.errors.NotFound:
         logging.error("Container with ID " + str(container_id) + " not found.")
     except Exception as e:
         logging.error("An error occurred: " + str(e))
-    return returnlines
+
+    return returnlines, is_finished
+
+def old_read_container_logs_stop_when_reach_x(container_id, x):
+    # st.info("looking for "+x)
+    returnlines = []
+    is_finished = False
+    try:
+        client = docker.from_env()
+        container = client.containers.get(container_id)
+        for log_line in container.logs(stream=True):
+            returnlines.append(log_line)
+            print(log_line)
+            if x in str(log_line):
+                is_finished = True
+    except docker.errors.NotFound:
+        logging.error("Container with ID " + str(container_id) + " not found.")
+    except Exception as e:
+        logging.error("An error occurred: " + str(e))
+    return returnlines, is_finished
+
+def run_query_triplestore_subject(query_str, triple_store_endpoint, s):
+    g = Graph()
+    # st.info("triple store endpoint is :"+triple_store_endpoint)
+    sparql = SPARQLWrapper(triple_store_endpoint)
+    print("query is :" + query_str)
+    print ("endpoint is :" + triple_store_endpoint)
+    # st.info(query_str)
+    sparql.setQuery(query_str)
+    sparql.setReturnFormat('json')
+    results = sparql.query().convert()
+
+    # st.info(str(results))
+
+    for result in results["results"]["bindings"]:
+        p = result["p"]["value"]
+        # st.info("p is :"+str(p))
+        o = result["o"]["value"]
+        # st.info("o is :" + str(o))
+
+        g.add((rdflib.term.URIRef(s), rdflib.term.URIRef(str(p)), rdflib.term.URIRef(str(o))))
+
+    num_triples = len(g)
+
+    # st.success("graph size is : " + str(num_triples))
+    return g
+
+def run_query_triplestore_object(query_str, triple_store_endpoint, o):
+    g = Graph()
+    # st.info("triple store endpoint is :"+triple_store_endpoint)
+    sparql = SPARQLWrapper(triple_store_endpoint)
+    print("query is :" + query_str)
+    print ("endpoint is :" + triple_store_endpoint)
+    # st.info(query_str)
+    sparql.setQuery(query_str)
+    sparql.setReturnFormat('json')
+    results = sparql.query().convert()
+
+    # st.info(str(results))
+
+    for result in results["results"]["bindings"]:
+        p = result["p"]["value"]
+        # st.info("p is :" + str(p))
+        s = result["s"]["value"]
+        # st.info("s is :" + str(s))
+
+        g.add((rdflib.term.URIRef(str(s)), rdflib.term.URIRef(str(p)), rdflib.term.URIRef(o)))
+
+    # num_triples = len(g)
+
+    # st.success("graph size is : " + str(num_triples))
+    return g
+
 ######## Steps
 
 ## upload file ---------------------------------------------------------------------------------------------------------
@@ -707,12 +798,11 @@ def start_repair_step(n_clicks, data):
             raise PreventUpdate
 
 ## start tentris ----------------------------------------------------------------------------------------------------
-@app.callback(
-        [Output('btn-start-lvl-3', "disabled", allow_duplicate=True),
-         Output('lbl-tentris-status', 'children'),
-         Output('state-tentris', 'data')],
-        [Input('btn-start-tentris-3', 'n_clicks'), Input('state-repair','data')],
-        prevent_initial_call=True
+@callback(
+    [Output('interval-component-tentris','disabled',allow_duplicate=True),
+    Output('state-tentris','data',allow_duplicate=True)],
+    [Input('btn-start-tentris-3', 'n_clicks'), Input('state-repair','data')],
+    prevent_initial_call=True
 )
 def start_tentris_step(n_clicks, data):
     if(n_clicks==1):
@@ -721,8 +811,150 @@ def start_tentris_step(n_clicks, data):
         repaired_a_box_iri = data['repaired_a_box_iri']
         print(repaired_a_box_iri)
 
+        tentris_experiment_data = create_experiment_data()
+        tentris_experiment_resource = tentris_experiment_data["experiment_iri"]
+        tentris_experiment_directory = tentris_experiment_data["experiment_folder"]
+        tentris_relative_file_location_inside_enexa_dir = tentris_experiment_directory
+
+        # add wikidata5m
+        responce_add_wikidata5m = add_module_configuration_to_enexa_service(
+            tentris_experiment_resource,
+            tentris_relative_file_location_inside_enexa_dir,
+            DATASET_NAME_TENTRIS,
+            label_for_addition="Adding Wikidata5M dataset file")
+        if (responce_add_wikidata5m.status_code != 200):
+            logging.error("cannot add file: " + DATASET_NAME_TENTRIS)
+        else:
+            # st.info("data set add to service " + responce_add_wikidata5m.text + " ")
+
+            wikidata5m_unfiltered_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
+
+            response_tentris_step = start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri)
+
+            container_id_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
+                                                                       "http://w3id.org/dice-research/enexa/ontology#containerId")
+
+            container_name_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
+                                                                         "http://w3id.org/dice-research/enexa/ontology#containerName")
+            return False, {'experiment_resource': experiment_resource,
+                                      'container_id_tentris_step_deployed': container_id_tentris_step_deployed,'tentris_experiment_resource':tentris_experiment_resource,'tentris_relative_file_location_inside_enexa_dir':tentris_relative_file_location_inside_enexa_dir}
+
     else:
         raise PreventUpdate
+
+@callback(
+[Output('interval-component-tentris','disabled',allow_duplicate=True),
+    Output('tentris_docker_log','value',allow_duplicate=True),
+    Output('lbl-tentris-status','value',allow_duplicate=True),
+    Output('tentris_docker_log','value',allow_duplicate=True)],
+    [Input('state-tentris','data'),
+    Input('interval-component-tentris','n_intervals'),
+    Input('interval-component-tentris','disabled')],
+    prevent_initial_call=True
+)
+def tentris_docker_log(data, n_intervals, disabled):
+    if(disabled == False):
+        container_id_tentris_step_deployed = data['container_id_tentris_step_deployed']
+        [returnlines, is_finished] = read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed, "0.0.0.0:9080")
+        if(is_finished):
+            return  True, '\n'.join(returnlines)
+        else:
+            return  False , '\n'.join(returnlines)
+
+
+## start tentris filter ------------------------------------------------------------------------------------------------
+@callback(
+    [Output('btn-start-cel-transform','disabled',allow_duplicate=True),
+     Output('lbl-tentris-filter-status','children'),
+    Output('state-tentris-filter','data',allow_duplicate=True)],
+    [Input('btn-start-filter-5m', 'n_clicks'),Input('state-tentris','data')],
+    prevent_initial_call=True
+)
+def start_tentris_filter_step(n_clicks, data):
+    if (n_clicks == 1):
+        container_name_tentris_step_deployed = data['container_name_tentris_step_deployed']
+        tentris_experiment_resource = data['tentris_experiment_resource']
+        tentris_relative_file_location_inside_enexa_dir = data['tentris_relative_file_location_inside_enexa_dir']
+        triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
+        print('triple_store_endpoint is :'+triple_store_endpoint)
+        # BASF, Adidas, BOSCH, Tommy Hilfiger, Dickies, Globus, Tesco, Lacoste, Foot Locker, Bohemia Interactive
+        all_iri = ["https://www.wikidata.org/wiki/Q9401", "https://www.wikidata.org/wiki/Q3895",
+                   "https://www.wikidata.org/wiki/Q234021", "https://www.wikidata.org/wiki/Q634881",
+                   "https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503",
+                   "https://www.wikidata.org/wiki/Q487494", "https://www.wikidata.org/wiki/Q309031",
+                   "https://www.wikidata.org/wiki/Q63335", "https://www.wikidata.org/wiki/Q890779"]
+
+        # query_str_first = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?s { "+all_iri+" }    ?s ?p ?o .}"
+        subject_graph = Graph()
+        for iri in all_iri:
+            query_str_first = "SELECT ?p ?o WHERE {  <" + iri + "> ?p ?o .} "
+            print("first query " + query_str_first)
+            # st.info("query is : " + query_str_first + " sending to Tentris")
+            subject_graph += run_query_triplestore_subject(query_str_first, triple_store_endpoint, iri)
+
+        object_graph = Graph()
+        for iri in all_iri:
+            query_str_second = "SELECT ?s ?p WHERE {  ?s ?p <" + iri + "> .}"
+            print("second query " + query_str_second)
+            # st.info("query is : " + query_str_second+ " sending to Tentris")
+            object_graph += run_query_triplestore_object(query_str_second, triple_store_endpoint, iri)
+
+        subject_graph += object_graph
+
+        num_triples = len(subject_graph)
+        logging.info("concat the graphs the graph size is " + str(num_triples))
+
+        filtered_wikidata5m_file_name = str(uuid.uuid4()) + ".nt"
+        filtered_wikidata5m_file_path = ENEXA_SHARED_DIRECTORY + "/" + filtered_wikidata5m_file_name
+        # st.info("graph will be save here : "+filtered_wikidata5m_file_path)
+        # Serialize the RDF graph as an .nt file
+
+        subject_graph.serialize(destination=filtered_wikidata5m_file_path, format="nt")
+        # with open(filtered_wikidata5m_file_path, 'wb') as f:
+        #     f.write(firstpartGraph.serialize(format='nt'))
+        # #save as file
+        # st.success("file saved")
+
+        # f = open(filtered_wikidata5m_file_path , 'w')
+        # f.write(firstpart)
+        # f.write(secondpart)
+        # f.close()
+        # add to service
+        responce_add_filteredwikidata5m = add_module_configuration_to_enexa_service(
+            tentris_experiment_resource,
+            tentris_relative_file_location_inside_enexa_dir,
+            filtered_wikidata5m_file_name,
+            label_for_addition="Adding generated Wikidata5M subset file")
+        if (responce_add_filteredwikidata5m.status_code != 200):
+            logging.error("cannot add file: " + filtered_wikidata5m_file_path)
+        else:
+            logging.info("graph add to service ")
+
+            wikidata5m_iri = extract_id_from_turtle(responce_add_filteredwikidata5m.text)
+
+            return False, "done", {'wikidata5m_iri': wikidata5m_iri}
+    else:
+        raise PreventUpdate
+
+
+## start cel transform ------------------------------------------------------------------------------------------------
+@callback(
+    [Output('','disabled',allow_duplicate=True),
+     Output('lbl-tentris-filter-status','children'),
+    Output('state-tentris-filter','data',allow_duplicate=True)],
+    [Input('btn-start-cel-transform', 'n_clicks'),Input('state-tentris-filter','data_tentris_filter'),Input('state-repair','data_state_repair')],
+    prevent_initial_call=True
+)
+def start_cel_transform_step(n_clicks, data_tentris_filter,data_state_repair):
+    if n_clicks == 1:
+        experiment_resource = data_state_repair['experiment_resource']
+        repaired_a_box_iri = data_state_repair['repaired_a_box_iri']
+        wikidata5m_iri = data_tentris_filter['wikidata5m_iri']
+        print('start cel transform experiment_resource is :' +experiment_resource +' repaired_a_box_iri :'+repaired_a_box_iri+' wikidata5m_iri:'+wikidata5m_iri )
+
+    else:
+        raise PreventUpdate
+
 
 ## level 1
 @app.callback(
@@ -734,6 +966,8 @@ def start_tentris_step(n_clicks, data):
 def update_buttons(button_1_clicks):
     if button_1_clicks == 1:
         return False, "First button clicked. Second button is now active."
+    else :
+        raise PreventUpdate
 
 
 ## level 2  ###########################################################################################################
@@ -766,38 +1000,26 @@ def update_output(n_clicks, value):
 [Output('btn-start-extraction-1', "disabled", allow_duplicate=True),
     Output('btn-start-repair-2', "disabled", allow_duplicate=True),
      Output('lbl-extraction-status', 'children',allow_duplicate=True),
-     Output('state-extraction', 'data',allow_duplicate=True)],
+     Output('btn-start-filter-5m', 'data',allow_duplicate=True)],
     [Input('btn-skip-extraction','n_clicks')],
     prevent_initial_call=True
 )
 def skipEx(n_clicks):
     if(n_clicks == 1):
-        return True, False,'skipped', {'experiment_resource':'http://example.org/enexa/6c8231ba-6129-459a-9989-fa3d2f4530cb','extracted_file_iri':'http://example.org/enexa/db37f350-aeeb-49e3-ae19-3c75d94b2349'}
+        return True, False,'skipped', {'experiment_resource':'http://example.org/enexa/6c8231ba-6129-459a-9989-fa3d2f4530cb','extracted_file_iri':'http://example.org/enexa/db37f350-aeeb-49e3-ae19-3c75d94b2349'}, "done" , False
     else :
         raise PreventUpdate
 
 
-# Define the 'another-callback' callback
-@app.callback(
-    Output('label-test-docker', 'children'),
-    [dash.dependencies.Input('another-callback', 'triggered')],
-    suppress_callback_exceptions=True
-)
-def update_another_output():
-    print('kkk')
-    # Simulate a long-running operation
-    time.sleep(2)
-    return "FF"
-
 @callback(
-Output('label-test-docker', 'children'),
+[Output('label-test-docker', 'children',allow_duplicate=True),
+    Output('interval-component-tentris','disabled',allow_duplicate=True),
+    Output('state-tentris','data',allow_duplicate=True)],
     [Input('btn-test-docker-log', 'n_clicks')],
     prevent_initial_call=True
 )
 def test_docker_log(n_clicks):
-    if(n_clicks == 1):
-        app.callback_context.trigger('another-callback')
-    elif (n_clicks == 2):
+    if (n_clicks == 1):
         experiment_resource = 'http://example.org/enexa/6c8231ba-6129-459a-9989-fa3d2f4530cb'
         repaired_a_box_iri = 'http://example.org/enexa/1fada534-be3e-4176-8b62-1a62e0d24c59'
 
@@ -826,11 +1048,9 @@ def test_docker_log(n_clicks):
 
             container_name_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
                                                                          "http://w3id.org/dice-research/enexa/ontology#containerName")
-
-            read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed, "0.0.0.0:9080")
-        return "XX"
+            return "running", False, {'experiment_resource':experiment_resource , 'container_id_tentris_step_deployed':container_id_tentris_step_deployed }
     else :
-        return "nothing"
+        return "nothing", True, {}
 
 
 
