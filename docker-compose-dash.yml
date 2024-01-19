@@ -1,0 +1,23 @@
+version: "3.0"
+services:
+  demo:
+    image: hub.cs.upb.de/enexa/images/enexa-ui-demo-dash:1.0.0
+    ports:
+      - "8050:8050"
+    volumes:
+      - type: bind
+        source: /data/enexa/shared
+        target: /home/shared
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SERVER_ENDPOINT=http://enexaservice:8080
+      - META_DATA_ENDPOINT=http://fuseki-devwd:3030/mydataset
+      - ENEXA_SHARED_DIRECTORY=/home/shared
+      - DATASET_NAME_TENTRIS=wikidata5M.nt
+    networks:
+      - enexaNet
+
+networks:
+  enexaNet:
+    external: true
+    name: enexaNet
