@@ -98,6 +98,14 @@ app.layout = html.Div([
     html.Label('No file has been uploaded', id='lbl-upload-status'),
     html.Div([html.Button('Start Extraction', id='btn-start-extraction-1', n_clicks=0, disabled=True),
               html.Label('The extraction step has not started yet', id='lbl-extraction-status')], id='level1'),
+    dcc.Interval(
+        id='interval-component-extraction',
+        interval=3 * 1000,  # in milliseconds
+        n_intervals=0,
+        disabled=True
+    ),
+    dcc.Textarea(id='extraction_docker_log', value='', readOnly=True, style={'width': '100%', 'height': '300px'}),
+    dcc.Store(id='extraction_afterrun_state'),
     html.Div([html.Button('Start Repair', id='btn-start-repair-2', n_clicks=0, disabled=True),
               html.Label('The repair step has not started yet', id='lbl-repair-status')], id='level2'),
     html.Div([html.Button('Start Tentris', id='btn-start-tentris-3', n_clicks=0, disabled=True),
@@ -913,10 +921,10 @@ def file_uploaded(contents, filename):
 ## start extraction ----------------------------------------------------------------------------------------------------
 
 @app.callback(
-    [Output('btn-start-repair-2', "disabled", allow_duplicate=True),
-     Output('lbl-extraction-status', 'children'),
+    [Output('lbl-extraction-status', 'children'),
      Output('state-extraction', 'data', allow_duplicate=True),
-     Output('btn-start-extraction-1', 'disabled', allow_duplicate=True)],
+     Output('btn-start-extraction-1', 'disabled', allow_duplicate=True),
+     Output('interval-component-extraction','disabled',allow_duplicate=True)],
     [Input('btn-start-extraction-1', 'n_clicks'), Input('state-uploadedFile', 'data')],
     prevent_initial_call=True
 )
@@ -953,17 +961,37 @@ def start_extraction_step(n_clicks, data):
                                                                    experiment_resource)
             print("status is : " + response_check_module_instance_status.text)
 
-            # ask for status of the module instance until it is finished
-            elapsedTime = SLEEP_IN_SECONDS
-            while "exited" not in response_check_module_instance_status.text:
-                response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                       module_instance_iri,
-                                                                       experiment_resource)
-                print("status is : " + response_check_module_instance_status.text)
-                time.sleep(SLEEP_IN_SECONDS)
-                elapsedTime = elapsedTime + SLEEP_IN_SECONDS
-                # Update the text of the info box in the session state
-                # st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+            print('done!')
+            return "extraction done", {'experiment_resource': experiment_resource,
+                                              'module_instance_iri': module_instance_iri,'container_id':container_id}, True, False
+
+    else:
+        raise PreventUpdate
+
+
+## extraction log ------------------------------------------------------------------------------------------------
+@callback(
+    [Output('btn-start-repair-2', "disabled", allow_duplicate=True),
+        Output('interval-component-extraction', 'disabled', allow_duplicate=True),
+     Output('extraction_docker_log', 'value', allow_duplicate=True),
+     Output('extraction_afterrun_state', 'data')],
+    [Input('state-extraction', 'data'),
+     Input('interval-component-extraction', 'n_intervals'),
+     Input('interval-component-extraction', 'disabled')],
+    prevent_initial_call=True
+)
+def extraction_docker_log(data, n_intervals, disabled):
+    if (disabled == False):
+        container_id = data['container_id']
+        module_instance_iri = data['module_instance_iri']
+        experiment_resource = data['experiment_resource']
+        returnlines = read_container_logs(container_id)
+        print('log size is ' + str(len(returnlines)))
+        response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+                                                               module_instance_iri,
+                                                               experiment_resource)
+        print('response_check_module_instance_status' + response_check_module_instance_status.text)
+        if ("exited" in response_check_module_instance_status.text):
 
             # todo check if it was successful
             extracted_file_iri = extract_X_from_triplestore(
@@ -984,9 +1012,9 @@ def start_extraction_step(n_clicks, data):
             # for line in lines :
             #     file_content += line
 
-            print('done!')
-            return False, "extraction done", {'experiment_resource': experiment_resource,
-                                              'extracted_file_iri': extracted_file_iri}, True
+            return (False, True, '\n'.join(returnlines), {'extracted_file_iri': extracted_file_iri,'experiment_resource':experiment_resource})
+        else:
+            return (True, False, '\n'.join(returnlines), {})
     else:
         raise PreventUpdate
 
@@ -997,7 +1025,7 @@ def start_extraction_step(n_clicks, data):
      Output('lbl-repair-status', 'children'),
      Output('state-repair', 'data'),
      Output('btn-start-repair-2', 'disabled', allow_duplicate=True)],
-    [Input('btn-start-repair-2', 'n_clicks'), Input('state-extraction', 'data')],
+    [Input('btn-start-repair-2', 'n_clicks'), Input('extraction_afterrun_state', 'data')],
     prevent_initial_call=True
 )
 def start_repair_step(n_clicks, data):
@@ -1381,7 +1409,7 @@ def cel_docker_log(data, n_intervals, disabled):
                                                                                 cel_step_module_instance_iri)
             return (True, '\n'.join(returnlines), {'cel_trained_file_kge_iri': cel_trained_file_kge_iri}, False)
         else:
-            return (False, '\n'.join(str(returnlines)), {}, True)
+            return (False, '\n'.join(returnlines), {}, True)
     else:
         raise PreventUpdate
 
