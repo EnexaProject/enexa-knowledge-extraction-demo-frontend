@@ -1,4 +1,6 @@
 import json
+import random
+import time
 
 import rdflib
 import streamlit as st
@@ -27,6 +29,9 @@ logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)
 
 appName = "app2"
+sleep_Before_show_explanation_link_in_seconds=35
+
+
 
 # config
 SERVER_ENDPOINT = config("SERVER_ENDPOINT", default="http://localhost:8080")
@@ -70,6 +75,7 @@ st.set_page_config(layout="wide", initial_sidebar_state="expanded",
                    )
 
 
+
 def write_file_to_folder(folder, filename, content):
     try:
         print("write_file_to_folder to : " + str(folder))
@@ -82,10 +88,16 @@ def write_file_to_folder(folder, filename, content):
             print("not exist make dir :" + folder)
             os.makedirs(folder)
 
-        with open(folder + "/" + filename, "wb") as f:
-            print(" write...")
-            f.write(content)
+        if isinstance(content, str):
+            with open(folder + "/" + filename, "w") as f:
+                f.write(content)
+        elif isinstance(content, bytes):
+            with open(folder + "/" + filename, "wb") as f:
+                f.write(content)
+        else:
+            st.error(" unknown content")
     except Exception as exc:
+        st.error(exc)
         print(exc)
 
 
@@ -116,10 +128,10 @@ def create_experiment_data():
 
 def add_resource_to_service(experiment_resource, relative_file_location_inside_enexa_dir, file_to_add,
                             label_for_addition="File added"):
-    print("send uploaded file to enexa service ")
-    print("experiment_resource is :" + experiment_resource)
-    print("relative_file_location_inside_enexa_dir is :" + relative_file_location_inside_enexa_dir)
-    print("uploaded_filename is :" + file_to_add)
+    #st.info("send uploaded file to enexa service ")
+    #st.info("experiment_resource is :" + experiment_resource)
+    #st.info("relative_file_location_inside_enexa_dir is :" + relative_file_location_inside_enexa_dir)
+    #st.info("uploaded_filename is :" + file_to_add)
     ttl_for_registering_the_file_upload = """
   @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
   @prefix prov:   <http://www.w3.org/ns/prov#> .
@@ -258,7 +270,7 @@ def start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri):
     @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
     [] rdf:type enexa:ModuleInstance ;
     enexa:experiment <{}> ;
-    alg:instanceOf <http://w3id.org/dice-research/enexa/module/tentris/0.2.0-SNAPSHOT-1> ;
+    alg:instanceOf <http://w3id.org/dice-research/enexa/module/tentris/0.3.0-SNAPSHOT-1> ;
     <http://w3id.org/dice-research/enexa/module/tentris/parameter/file> <{}>.
     """.format(experiment_resource, wikidata5m_unfiltered_iri)
 
@@ -274,13 +286,19 @@ def start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri):
     return response_start_module
 
 
-def start_explanation_module(experiment_resource, json_string):
+def start_explanation_module(experiment_resource, json_object):
+    json_string = json.dumps(json_object)
     # add json file
+    chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     random_filename = ''.join(random.choice(chars) for i in range(16))
 
-    file_name = random_filename + ".json"
+    explanation_step_experiment_data = experiment_data  # create_experiment_data()
+    explanation_experiment_directory = explanation_step_experiment_data["experiment_folder"]
 
-    write_file_to_folder("enexa-dir://explanationfiles/", file_name, json_string)
+    file_name = random_filename + ".json"
+    #st.info(json_string)
+
+    write_file_to_folder("enexa-dir://explanationfiles", file_name, json_string)
 
     # # Use tempfile.NamedTemporaryFile to create a temporary file with a random name
     # with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as temp_file:
@@ -289,7 +307,7 @@ def start_explanation_module(experiment_resource, json_string):
     #     json.dump(json.loads(json_string), temp_file)
 
     response_adding_explanation_file = add_resource_to_service(experiment_resource,
-                                                               "enexa-dir://explanationfiles/",
+                                                               "enexa-dir://explanationfiles",
                                                                file_name,
                                                                label_for_addition="Adding file explanation json")
     if response_adding_explanation_file.status_code != 200:
@@ -302,31 +320,50 @@ def start_explanation_module(experiment_resource, json_string):
         # start module
         # return the name for url
 
+        response_add_openapi_key = add_resource_to_service(experiment_resource,
+                                                                   "enexa-dir://explanationfiles",
+                                                                   "openapi.key",
+                                                                   label_for_addition="Adding file explanation json")
+
+        if (response_add_openapi_key.status_code != 200):
+            st.error("cannot add file")
+        else:
+
+            urls_to_openai_key_iri = extract_id_from_turtle(response_add_openapi_key.text)
+
+
+            start_module_message = """
+            @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+            @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+            @prefix prov:   <http://www.w3.org/ns/prov#> .
+            @prefix hobbit: <http://w3id.org/hobbit/vocab#> . 
+            @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            [] rdf:type enexa:ModuleInstance ;
+            enexa:experiment <{}> ;
+            alg:instanceOf <http://w3id.org/dice-research/enexa/module/explanation/0.1.0> ;
+            <http://w3id.org/dice-research/enexa/module/explanation/parameter/path_json> <{}>;
+            <http://w3id.org/dice-research/enexa/module/explanation/parameter/path_to_key_file> <{}> .
+            """.format(experiment_resource, urls_to_explanation_json_iri, urls_to_openai_key_iri)
+
+            start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
 
 
-        start_module_message = """
-        @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
-        @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
-        @prefix prov:   <http://www.w3.org/ns/prov#> .
-        @prefix hobbit: <http://w3id.org/hobbit/vocab#> . 
-        @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-        [] rdf:type enexa:ModuleInstance ;
-        enexa:experiment <{}> ;
-        alg:instanceOf <http://w3id.org/dice-research/enexa/module/explanation:0.0.1> ;
-        <http://w3id.org/dice-research/enexa/module/enexa-explanation-module/parameter/path_jsons> \"\".
-        """.format(experiment_resource)
+            with st.expander("▶️ Querying the ENEXA service to start the Explanation module"):
+                st.code(start_module_message, language="turtle")
+                st.code(start_module_message_as_jsonld, language="json")
 
-        start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
+            start_container_endpoint = SERVER_ENDPOINT + "/start-container"
+            response_start_module_explain = requests.post(start_container_endpoint, data=start_module_message_as_jsonld, headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
+            container_name_explain = extract_X_from_turtle(response_start_module_explain.text,
+                                                           "http://w3id.org/dice-research/enexa/ontology#containerName")
+            url_expl_serive = "http://enexa-demo.cs.uni-paderborn.de/"+container_name_explain+"/"
 
-        with st.expander("▶️ Querying the ENEXA service to start the Tentris module"):
-            st.code(start_module_message, language="turtle")
-            st.code(start_module_message_as_jsonld, language="json")
+            st.info(" Loading explanation module , please wait ...")
+            time.sleep(sleep_Before_show_explanation_link_in_seconds)
 
-        start_container_endpoint = SERVER_ENDPOINT + "/start-container"
-        response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
-                                              headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
-        return response_start_module
+            st.markdown('[Explanation chatbot]('+url_expl_serive+')')
+            return response_start_module_explain
 
 
 def start_embedding_transform_module(experiment_resource, module_instance_id, ontologyIRI, wikidata5mIRI):
@@ -518,7 +555,7 @@ def print_banner_to_console():
 st.title("ENEXA Integration Demo")
 
 ##opening the image
-image = Image.open('images/Enexa-Demo-Sep-23.png')
+image = Image.open('images/Enexa-Demo-May-24.png')
 ##displaying the image on streamlit app
 st.image(image)  # , caption='Enter any caption here'
 
@@ -584,10 +621,7 @@ def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_inst
         returnIRI = result["iri"]["value"]
 
     if returnIRI == "":
-        st.error(
-            "there is no iri in the triple store for <{"
-            "}><" + X + ">").format(
-            module_instance_iri)
+        st.error("there is no iri in the triple store for <"+module_instance_iri+"><" + X + ">")
     else:
         return returnIRI
 
@@ -744,12 +778,12 @@ def add_tentris_endpoint_to_metadata(experiment_resource, tentris_endpoint):
 
 def add_module_configuration_to_enexa_service(experiment_resource, relative_file_location_inside_enexa_dir,
                                               uploaded_filename, label_for_addition="File added"):
-    st.info("start add configuration ")
-    st.info("add_module_configuration_to_enexa_service")
+    #st.info("start add configuration ")
+    #st.info("add_module_configuration_to_enexa_service")
     # copy the file in share directory
-    st.info("experiment_resource: " + experiment_resource)
-    st.info("relative_file_location_inside_enexa_dir: " + relative_file_location_inside_enexa_dir)
-    st.info("uploaded_filename: " + uploaded_filename)
+    #st.info("experiment_resource: " + experiment_resource)
+    #st.info("relative_file_location_inside_enexa_dir: " + relative_file_location_inside_enexa_dir)
+    #st.info("uploaded_filename: " + uploaded_filename)
 
     # Split the experimentIRI using "/"
     path_elements = experiment_resource.split("/")
@@ -761,14 +795,36 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
     # if path is not there create it
     path_to_check = os.path.join(ENEXA_SHARED_DIRECTORY, appName, experimentIRI)
 
-    print("check this path " + path_to_check)
+    #st.info("check this path " + path_to_check)
     if not os.path.exists(path_to_check):
+        #st.info("make path")
         os.makedirs(path_to_check)
-    st.info("copy from " + os.path.join(ENEXA_SHARED_DIRECTORY, uploaded_filename) + " to " + os.path.join(
-        ENEXA_SHARED_DIRECTORY, appName, experimentIRI, uploaded_filename))
+    #st.info("copy from " + os.path.join(ENEXA_SHARED_DIRECTORY, uploaded_filename) + " to " + os.path.join( ENEXA_SHARED_DIRECTORY, appName, experimentIRI, uploaded_filename))
+    #st.info("start copy")
+    # shutil.copyfile(os.path.join(ENEXA_SHARED_DIRECTORY, uploaded_filename),
+    #                 os.path.join(ENEXA_SHARED_DIRECTORY, appName, experimentIRI, uploaded_filename))
 
-    shutil.copyfile(os.path.join(ENEXA_SHARED_DIRECTORY, uploaded_filename),
-                    os.path.join(ENEXA_SHARED_DIRECTORY, appName, experimentIRI, uploaded_filename))
+    # Define paths
+    source_path = os.path.join(ENEXA_SHARED_DIRECTORY, uploaded_filename)
+    destination_path = os.path.join(ENEXA_SHARED_DIRECTORY, appName, experimentIRI, uploaded_filename)
+
+    # Try to copy the file and check if it was successful
+    try:
+        shutil.copyfile(source_path, destination_path)
+        #st.info(f"File copied successfully from {source_path} to {destination_path}")
+    except shutil.SameFileError:
+        st.error("Source and destination represents the same file.")
+    except IsADirectoryError:
+        st.error("Destination is a directory.")
+    except PermissionError:
+        st.error("Permission denied.")
+    except FileNotFoundError:
+        st.error(f"Source file {source_path} not found.")
+    except Exception as e:
+        st.error(f"Error occurred while copying file: {e}")
+
+
+    st.info("finish copy")
     # add resource
     ttl_for_registering_the_file_upload = """
     @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
@@ -787,13 +843,12 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
 
     response = requests.post(SERVER_ENDPOINT + "/add-resource", data=ttl_for_registering_the_file_upload_as_jsonld,
                              headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
-    st.info("file added and the response is :" + str(response))
+    #st.info("file added and the response is :" + str(response))
     return response
 
 
 def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_iri):
-    st.info(
-        "starting cel service" + "experiment_resource :" + experiment_resource + "tripleStoreIRI :" + tripleStoreIRI + "embedding_csv_iri :" + embedding_csv_iri)
+    #st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tripleStoreIRI :" + tripleStoreIRI + "embedding_csv_iri :" + embedding_csv_iri)
 
     cel_service_experiment_data = experiment_data  # create_experiment_data()
     cel_service_experiment_resource = cel_service_experiment_data["experiment_iri"]
@@ -857,12 +912,37 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
+        "path_to_pretrained_drill": "pretrained_drill",
         "path_embeddings": locationOfCSVFile
     }
 
-    st.info(data)
-    st.info(json.dumps(data))
+    st.info("Training started")
     # Sending the GET request with headers and JSON data
+    response = requests.get(url, headers=headers, data=json.dumps(data))
+
+    # Check for successful response
+    if response.status_code == 200:
+        # Process the JSON response data
+        #st.info(response.json())
+        st.info("Training finished")
+    else:
+        # Handle error
+        st.error(f"Error: {response.text}")
+        st.error(response)
+
+    st.info("Evaluating")
+
+    data = {
+        "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
+        "neg": ["http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q169167",
+                "http://www.wikidata.org/entity/Q192334"],
+        "model": "Drill",
+        "max_runtime": 180,
+        "iter_bound": 2,
+        "path_to_pretrained_drill": "pretrained_drill",
+        "path_embeddings": locationOfCSVFile
+    }
+    st.info(data)
     response = requests.get(url, headers=headers, data=json.dumps(data))
 
     # Check for successful response
@@ -874,35 +954,41 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         st.error(f"Error: {response.text}")
         st.error(response)
 
-    st.info("now evaluate")
+    # # Sending the GET request with headers and JSON data
+    # response = requests.get(url, headers=headers, json=json.dumps(data))
+    #
+    # # Check for successful response
+    # if response.status_code == 200:
+    #     # Process the JSON response data
+    #     st.info(response.json())
+    #     st.info("please wait for explanation module . . . ")
+    #     json_file_for_this_example = """{    "learned_expression": "Subsidiary (Q658255)",    "positive_examples": {        "Tommy Hilfiger (Q634881)": "American multinational corporation that designs and manufactures apparel"    },    "negative_examples": {        "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories",        "Globus (Q457503)": "German multinational hypermarket, home improvement and electronics retail chain"    },    "source": "https://en.wikipedia.org",    "extraction_model": "https://huggingface.co/ibm/knowgl-large",    "learned_by": "Neural Class Expression Learner"}""";
+    #     start_explanation_module(json_file_for_this_example)
+    #
+    # else:
+    #     st.error(f"Error: {response.text}")
+    #     st.error(response)
 
-    data = {
-        "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
-        "neg": ["http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q169167",
-                "http://www.wikidata.org/entity/Q192334"],
-        "model": "Drill",
-        "max_runtime": 180,
-        "iter_bound": 2,
-        "pretrained": "pretrained",
-        "path_embeddings": locationOfCSVFile
+
+    #open explanation module
+    explanation_json_file = {
+        "learned_expression": "Sponsor (P859)",
+        "positive_examples": {
+            "Adidas AG (Q3895)": "German multinational corporation",
+            "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories"
+        },
+        "negative_examples": {
+            "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
+            "Metro AG (Q169167)": "German wholesale company",
+            "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States"
+        },
+        "source": "https://en.wikipedia.org",
+        "extraction_model": "https://huggingface.co/ibm/knowgl-large",
+        "learned_by": "Neural Class Expression Learner"
     }
+    #st.info("start explanation"+ json.dumps(explanation_json_file))
+    start_explanation_module(experiment_resource, explanation_json_file)
 
-    st.info(data)
-
-    # Sending the GET request with headers and JSON data
-    response = requests.get(url, headers=headers, json=data)
-
-    # Check for successful response
-    if response.status_code == 200:
-        # Process the JSON response data
-        st.info(response.json())
-        st.info("please wait for explanation module . . . ")
-        json_file_for_this_example = """{    "learned_expression": "Subsidiary (Q658255)",    "positive_examples": {        "Tommy Hilfiger (Q634881)": "American multinational corporation that designs and manufactures apparel"    },    "negative_examples": {        "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories",        "Globus (Q457503)": "German multinational hypermarket, home improvement and electronics retail chain"    },    "source": "https://en.wikipedia.org",    "extraction_model": "https://huggingface.co/ibm/knowgl-large",    "learned_by": "Neural Class Expression Learner"}""";
-        start_explanation_module(json_file_for_this_example)
-
-    else:
-        st.error(f"Error: {response.text}")
-        st.error(response)
 
     # perform_cel(data, "$E^+=\\Big\{$BASF (Q9401), Adidas (Q3895)$\\Big\}, E^-=\\Big\{$Bosch (Q234021)$\\Big\}$", url, headers, label_dict)
     #
@@ -973,8 +1059,7 @@ def create_pretty_ce(class_expression, label_dict):
 
 def start_cel_step(experiment_resource, tripleStoreIRI):
     st.subheader("5️ Running class expression learning")
-    st.info("Starting class expression learning ... experiment_resource : " + str(
-        experiment_resource) + " tripleStoreIRI: " + str(tripleStoreIRI))
+    #st.info("Starting class expression learning ... experiment_resource : " + str(        experiment_resource) + " tripleStoreIRI: " + str(tripleStoreIRI))
     cel_experiment_data = experiment_data  # create_experiment_data()
 
     cel_experiment_resource = cel_experiment_data["experiment_iri"]
@@ -1146,7 +1231,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed, "0.0.0.0:9080")
 
-        st.write("✅ Tentris is ready.")
+        #st.write("✅ Tentris is ready.")
         # st.success("Tentris is ready",icon="✅")
         triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
 
@@ -1209,7 +1294,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         #     start_cel_transform_step(experiment_resource, repaired_a_box_iri, wikidata5m_iri)
         tentris_iri = extract_id_from_turtle(response_tentris_step.text)
-        st.info("tentris is : "+tentris_iri)
+        #st.info("tentris is : "+tentris_iri)
         start_cel_step(experiment_resource, tentris_iri)
 
 
@@ -1775,6 +1860,33 @@ if uploaded_files is not None and uploaded_files != []:
 #
 #
 # st.button('send cel request', on_click=send_cel_req)
+
+def send_explanation_req():
+    global experiment_data
+    experiment_data = create_experiment_data()
+    explanation_json_file = {
+        "learned_expression": "Sponsor (P859)",
+        "positive_examples": {
+            "Adidas AG (Q3895)": "German multinational corporation",
+            "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories"
+        },
+        "negative_examples": {
+            "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
+            "Metro AG (Q169167)": "German wholesale company",
+            "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States"
+        },
+        "source": "https://en.wikipedia.org",
+        "extraction_model": "https://huggingface.co/ibm/knowgl-large",
+        "learned_by": "Neural Class Expression Learner"
+    }
+
+    start_explanation_module("http://example.org/enexa/2026ae4f-951c-4245-9c79-0b4307438e0f",
+                  explanation_json_file)
+
+
+st.button('Explanation', on_click=send_explanation_req)
+
+
 
 
 def send_tentris_req():
