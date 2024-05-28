@@ -112,8 +112,9 @@ def create_experiment_data():
 
         # st.info(response.text)
 
-        with st.expander("🧪 Experiment started"):
-            st.code(pprint.pformat(response.json(), indent=2), language="json")
+        #with st.expander("🧪 Experiment started"):
+        #    st.code(pprint.pformat(response.json(), indent=2), language="json")
+
         return {
             "experiment_iri": response.json()["@id"],
             "experiment_folder": response.json()[ENEXA_EXPERIMENT_SHARED_DIRECTORY_LITERAL],
@@ -183,9 +184,9 @@ def start_cel_service_module(experiment_resource, triplestoreIRI):
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("▶️ Querying the ENEXA service to start the CEL-deploy module."):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the CEL-deploy module."):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -215,9 +216,9 @@ def deprecate_start_cel_module(experiment_resource, owl_file_iri, embedding_csv_
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("▶️ Querying the ENEXA service to start the CEL-training module."):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the CEL-training module."):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -248,9 +249,9 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/transform/0.0.1> ;
 
     # st.info("start_module_message_as_jsonld : "+start_module_message_as_jsonld)
 
-    with st.expander("▶️ Querying the ENEXA service to start the transformation module."):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the transformation module."):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -276,9 +277,9 @@ def start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri):
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("▶️ Querying the ENEXA service to start the Tentris module"):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the Tentris module"):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -349,9 +350,9 @@ def start_explanation_module(experiment_resource, json_object):
 
 
 
-            with st.expander("▶️ Querying the ENEXA service to start the Explanation module"):
-                st.code(start_module_message, language="turtle")
-                st.code(start_module_message_as_jsonld, language="json")
+            # with st.expander("▶️ Querying the ENEXA service to start the Explanation module"):
+            #     st.code(start_module_message, language="turtle")
+            #     st.code(start_module_message_as_jsonld, language="json")
 
             start_container_endpoint = SERVER_ENDPOINT + "/start-container"
             response_start_module_explain = requests.post(start_container_endpoint, data=start_module_message_as_jsonld, headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
@@ -390,9 +391,9 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/transform/0.0.1> ;
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("▶️ Querying the ENEXA service to start the transformation module."):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the transformation module."):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -423,9 +424,9 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/dice-embeddings/1.0.0
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("▶️ Querying the ENEXA service to start the DICE embeddings module."):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the DICE embeddings module."):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -452,9 +453,9 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/wikidata-preproc/1.0.
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("▶️ Querying the ENEXA service to start the Wikidata pre-processing module."):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the Wikidata pre-processing module."):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -483,9 +484,9 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/kg-fixing/1.0.0> ;
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("▶️ Querying the ENEXA service to start the knowledge graph repair module."):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the knowledge graph repair module."):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -514,9 +515,9 @@ alg:instanceOf <http://w3id.org/dice-research/enexa/module/extraction/1.0.0> ;
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-    with st.expander("▶️ Querying the ENEXA service to start the knowldge extraction module."):
-        st.code(start_module_message, language="turtle")
-        st.code(start_module_message_as_jsonld, language="json")
+    # with st.expander("▶️ Querying the ENEXA service to start the knowldge extraction module."):
+    #     st.code(start_module_message, language="turtle")
+    #     st.code(start_module_message_as_jsonld, language="json")
 
     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
     response_start_module = requests.post(start_container_endpoint, data=start_module_message_as_jsonld,
@@ -824,7 +825,7 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
         st.error(f"Error occurred while copying file: {e}")
 
 
-    st.info("finish copy")
+    #st.info("finish copy")
     # add resource
     ttl_for_registering_the_file_upload = """
     @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
@@ -837,9 +838,9 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
 
     ttl_for_registering_the_file_upload_as_jsonld = turtle_to_jsonld(ttl_for_registering_the_file_upload)
 
-    with st.expander("➕ " + label_for_addition):
-        st.code(ttl_for_registering_the_file_upload, language="turtle")
-        st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
+    # with st.expander("➕ " + label_for_addition):
+    #     st.code(ttl_for_registering_the_file_upload, language="turtle")
+    #     st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
 
     response = requests.post(SERVER_ENDPOINT + "/add-resource", data=ttl_for_registering_the_file_upload_as_jsonld,
                              headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
@@ -968,7 +969,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     # else:
     #     st.error(f"Error: {response.text}")
     #     st.error(response)
-
+    st.subheader("6 Running explaining module")
 
     #open explanation module
     explanation_json_file = {
@@ -1861,64 +1862,64 @@ if uploaded_files is not None and uploaded_files != []:
 #
 # st.button('send cel request', on_click=send_cel_req)
 
-def send_explanation_req():
-    global experiment_data
-    experiment_data = create_experiment_data()
-    explanation_json_file = {
-        "learned_expression": "Sponsor (P859)",
-        "positive_examples": {
-            "Adidas AG (Q3895)": "German multinational corporation",
-            "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories"
-        },
-        "negative_examples": {
-            "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
-            "Metro AG (Q169167)": "German wholesale company",
-            "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States"
-        },
-        "source": "https://en.wikipedia.org",
-        "extraction_model": "https://huggingface.co/ibm/knowgl-large",
-        "learned_by": "Neural Class Expression Learner"
-    }
-
-    start_explanation_module("http://example.org/enexa/2026ae4f-951c-4245-9c79-0b4307438e0f",
-                  explanation_json_file)
-
-
-st.button('Explanation', on_click=send_explanation_req)
-
-
-
-
-def send_tentris_req():
-    global experiment_data
-    experiment_data = create_experiment_data()
-    start_tentris("http://example.org/enexa/2026ae4f-951c-4245-9c79-0b4307438e0f",
-                  "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
-
-
-st.button('Continue from Step 4 (Tentris)', on_click=send_tentris_req)
-
-
-def continue_cel_transform():
-    global experiment_data
-    experiment_data = create_experiment_data()
-    experiment_resource = experiment_data["experiment_iri"]
-    repaired_abox_iri = "http://example.org/enexa/40c6f5d2-03a7-4825-b3e9-4cea69f049b7"
-    wikidata5m_iri = "http://example.org/enexa/28e8e590-3b8b-4514-af68-c723be6a7660"
-    #start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri)
-
-
-st.button('CEL transform', on_click=continue_cel_transform)
-
-
-def continue_cel_deploy():
-    global experiment_data
-    experiment_data = create_experiment_data()
-    experiment_resource = experiment_data["experiment_iri"]
-    owl_file_iri = "http://example.org/enexa/13500f8a-c091-4816-8ff5-bc70049bfba4"
-    embedding_csv_iri = "http://example.org/enexa/50c7f2f9-ef34-435b-9443-8589138ad9ed"
-    cel_trained_heuristics_file_iri = "http://example.org/enexa/67ac8bd1-23a1-4495-b171-5fef4579ab57"
-    start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_heuristics_file_iri)
-
-
-st.button('Continue from Step 5.2 (CEL-Deploy)', on_click=continue_cel_deploy)
+# def send_explanation_req():
+#     global experiment_data
+#     experiment_data = create_experiment_data()
+#     explanation_json_file = {
+#         "learned_expression": "Sponsor (P859)",
+#         "positive_examples": {
+#             "Adidas AG (Q3895)": "German multinational corporation",
+#             "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories"
+#         },
+#         "negative_examples": {
+#             "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
+#             "Metro AG (Q169167)": "German wholesale company",
+#             "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States"
+#         },
+#         "source": "https://en.wikipedia.org",
+#         "extraction_model": "https://huggingface.co/ibm/knowgl-large",
+#         "learned_by": "Neural Class Expression Learner"
+#     }
+#
+#     start_explanation_module("http://example.org/enexa/2026ae4f-951c-4245-9c79-0b4307438e0f",
+#                   explanation_json_file)
+#
+#
+# st.button('Explanation', on_click=send_explanation_req)
+#
+#
+#
+#
+# def send_tentris_req():
+#     global experiment_data
+#     experiment_data = create_experiment_data()
+#     start_tentris("http://example.org/enexa/2026ae4f-951c-4245-9c79-0b4307438e0f",
+#                   "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
+#
+#
+# st.button('Continue from Step 4 (Tentris)', on_click=send_tentris_req)
+#
+#
+# def continue_cel_transform():
+#     global experiment_data
+#     experiment_data = create_experiment_data()
+#     experiment_resource = experiment_data["experiment_iri"]
+#     repaired_abox_iri = "http://example.org/enexa/40c6f5d2-03a7-4825-b3e9-4cea69f049b7"
+#     wikidata5m_iri = "http://example.org/enexa/28e8e590-3b8b-4514-af68-c723be6a7660"
+#     #start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri)
+#
+#
+# st.button('CEL transform', on_click=continue_cel_transform)
+#
+#
+# def continue_cel_deploy():
+#     global experiment_data
+#     experiment_data = create_experiment_data()
+#     experiment_resource = experiment_data["experiment_iri"]
+#     owl_file_iri = "http://example.org/enexa/13500f8a-c091-4816-8ff5-bc70049bfba4"
+#     embedding_csv_iri = "http://example.org/enexa/50c7f2f9-ef34-435b-9443-8589138ad9ed"
+#     cel_trained_heuristics_file_iri = "http://example.org/enexa/67ac8bd1-23a1-4495-b171-5fef4579ab57"
+#     start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_heuristics_file_iri)
+#
+#
+# st.button('Continue from Step 5.2 (CEL-Deploy)', on_click=continue_cel_deploy)
