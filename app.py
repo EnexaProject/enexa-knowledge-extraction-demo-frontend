@@ -1532,7 +1532,7 @@ def read_file(file_path, num_lines):  # , keyword):
 
 def start_repair_step(experiment_resource, module_instance_id):
     st.subheader("2️ Running knowledge graph repair module")
-    st.info("experiment_resource : "+experiment_resource)
+    #st.info("experiment_resource : "+experiment_resource)
 
     second_step_experiment_data = experiment_data  # create_experiment_data()
     second_step_experiment_resource = second_step_experiment_data["experiment_iri"]
