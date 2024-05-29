@@ -19,7 +19,7 @@ import shutil
 import docker
 import uuid
 import re
-import pandas
+import pandas as pd
 
 from decouple import config
 from rdflib import Graph, URIRef
@@ -287,7 +287,7 @@ def start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri):
     return response_start_module
 
 
-def start_explanation_module(experiment_resource, json_object):
+def start_explanation_module(experiment_resource, json_object, chatbot_label):
     json_string = json.dumps(json_object)
     # add json file
     chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -358,12 +358,13 @@ def start_explanation_module(experiment_resource, json_object):
             response_start_module_explain = requests.post(start_container_endpoint, data=start_module_message_as_jsonld, headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
             container_name_explain = extract_X_from_turtle(response_start_module_explain.text,
                                                            "http://w3id.org/dice-research/enexa/ontology#containerName")
-            url_expl_serive = "http://enexa-demo.cs.uni-paderborn.de/"+container_name_explain+"/"
+            url_expl_service = "http://enexa-demo.cs.uni-paderborn.de/"+container_name_explain+"/"
 
-            st.info(" Loading explanation module , please wait ...")
+            st.info(f'Loading explanation module for {chatbot_label} , please wait ...')
             time.sleep(sleep_Before_show_explanation_link_in_seconds)
 
-            st.markdown('[Explanation chatbot]('+url_expl_serive+')')
+            #st.markdown('[Explanation chatbot for {chatbot_label}]('+url_expl_service+')')
+            st.markdown(f'[Explanation chatbot for {chatbot_label}]({url_expl_service})')
             return response_start_module_explain
 
 
@@ -909,7 +910,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     # First example: BASF, Adidas vs. Bosch
     data = {
         "pos":["http://www.wikidata.org/entity/Q3895","http://www.wikidata.org/entity/Q180855"],
-        "neg":["http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334"],
+        "neg":["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -935,8 +936,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
 
     data = {
         "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
-        "neg": ["http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q169167",
-                "http://www.wikidata.org/entity/Q192334"],
+        "neg": ["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -949,11 +949,47 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
-        st.info(response.json())
+        #st.info(response.json())
+        with st.expander("⚙️ Results 1st example"):
+            data = json.loads(response.text)
+            df = pd.DataFrame(data['Results'])
+            df = df[['Rank', 'Prediction', 'F1', 'Verbalization']]
+
+            st.table(df.set_index('Rank'))
     else:
         # Handle error
         st.error(f"Error: {response.text}")
         st.error(response)
+
+    st.info("Evaluating second example ")
+
+    data = {
+        "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"],
+        "neg": ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q20165"],
+        "model": "Drill",
+        "max_runtime": 180,
+        "iter_bound": 2,
+        "path_to_pretrained_drill": "pretrained_drill",
+        "path_embeddings": locationOfCSVFile
+    }
+    st.info(data)
+    response = requests.get(url, headers=headers, data=json.dumps(data))
+
+    # Check for successful response
+    if response.status_code == 200:
+        # Process the JSON response data
+        #st.info(response.json())
+        with st.expander("⚙️ Results 2nd example"):
+            data = json.loads(response.text)
+            df = pd.DataFrame(data['Results'])
+            df = df[['Rank', 'Prediction', 'F1', 'Verbalization']]
+
+            st.table(df.set_index('Rank'))
+    else:
+        # Handle error
+        st.error(f"Error: {response.text}")
+        st.error(response)
+
 
     # # Sending the GET request with headers and JSON data
     # response = requests.get(url, headers=headers, json=json.dumps(data))
@@ -979,47 +1015,43 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
             "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories"
         },
         "negative_examples": {
+            "Nike (Q483915)": "American athletic equipment company",
             "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
             "Metro AG (Q169167)": "German wholesale company",
-            "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States"
+            "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States",
+            "Mars, Incorporated (Q695087)": "American global food company and manufacturer",
+            "Nissan Motor Co. Ltd. (Q20165)": "Japanese company",
+            "Heineken Experience (Q2087161)": "industrial museum in Amsterdam, Netherlands"
         },
         "source": "https://en.wikipedia.org",
         "extraction_model": "https://huggingface.co/ibm/knowgl-large",
         "learned_by": "Neural Class Expression Learner"
     }
     #st.info("start explanation"+ json.dumps(explanation_json_file))
-    start_explanation_module(experiment_resource, explanation_json_file)
+    start_explanation_module(experiment_resource, explanation_json_file , "first example")
 
 
-    # perform_cel(data, "$E^+=\\Big\{$BASF (Q9401), Adidas (Q3895)$\\Big\}, E^-=\\Big\{$Bosch (Q234021)$\\Big\}$", url, headers, label_dict)
-    #
-    # # Second example: Tommy Hilfiger, Dickies, Globus vs. Tesco, BASF, Adidas
-    # data = {
-    #     "positives": ["https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503"],
-    #     "negatives": ["https://www.wikidata.org/wiki/Q487494", "https://www.wikidata.org/wiki/Q9401", "https://www.wikidata.org/wiki/Q3895"]
-    # }
-    # perform_cel(data, "$E^+=\\Big\{$Tommy Hilfiger (Q634881), Dickies (Q114913), Globus (Q457503)$\\Big\}, E^-=\\Big\{$Tesco (Q487494), BASF (Q9401), Adidas (Q3895)$\\Big\}$", url, headers, label_dict)
-    #
-    # # Third example: Tommy Hilfiger vs. Dickies, Globus
-    # data = {
-    #     "positives": ["https://www.wikidata.org/wiki/Q634881"],
-    #     "negatives": ["https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503"]
-    # }
-    # perform_cel(data, "$E^+=\\Big\{$Tommy Hilfiger (Q634881)$\\Big\}, E^-=\\Big\{$Dickies (Q114913), Globus (Q457503)$\\Big\}$", url, headers, label_dict)
-    #
-    # # Fourth example: Tommy Hilfiger, Dickies vs. Globus, Tesco,
-    # data = {
-    #     "positives": ["https://www.wikidata.org/wiki/Q634881", "https://www.wikidata.org/wiki/Q114913"],
-    #     "negatives": ["https://www.wikidata.org/wiki/Q457503", "https://www.wikidata.org/wiki/Q487494", "https://www.wikidata.org/wiki/Q63335", "https://www.wikidata.org/wiki/Q309031"]
-    # }
-    # perform_cel(data, "$E^+=\\Big\{$Globus (Q457503), Dickies (Q114913)$\\Big\}, E^-=\\Big\{$Tommy Hilfiger (Q634881), Tesco (Q487494), Foot Locker (Q63335), Lacoste (Q309031)$\\Big\}$", url, headers, label_dict)
-    #
-    # # First example: BASF, Adidas vs. Bosch
-    # #data = {
-    # #    "positives": ["https://www.wikidata.org/wiki/Q9401", "https://www.wikidata.org/wiki/Q3895"],
-    # #    "negatives": ["https://www.wikidata.org/wiki/Q234021"]
-    # #}
-    # #perform_cel(data, "Example: BASF (Q9401), Adidas (Q3895) vs. Bosch (Q234021)", url, headers, label_dict)
+    ###### second example
+    # open explanation module
+    explanation_json_file = {
+        "learned_expression": "named after (P138)",
+        "positive_examples": {
+            "Adidas AG (Q3895)": "German multinational corporation",
+            "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories",
+            "Metro AG (Q169167)": "German wholesale company"
+        },
+        "negative_examples": {
+            "Nike (Q483915)": "American athletic equipment company",
+            "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
+            "Nissan Motor Co. Ltd. (Q20165)": "Japanese company"
+        },
+        "source": "https://en.wikipedia.org",
+        "extraction_model": "https://huggingface.co/ibm/knowgl-large",
+        "learned_by": "Neural Class Expression Learner"
+    }
+    # st.info("start explanation"+ json.dumps(explanation_json_file))
+    start_explanation_module(experiment_resource, explanation_json_file, "second example")
+
 
     st.success("Done!", icon="🏁")
 
@@ -1034,7 +1066,8 @@ def perform_cel(data, label, url, headers, label_dict):
 
 def cel_response_to_markdown(response_data, label_dict):
     output = ""
-    for rated_ce in response_data["prediction"]:
+    st.info(response_data)
+    for rated_ce in response_data["Results"]:
         rated_ce[0] = create_pretty_ce(rated_ce[0], label_dict)
     st.table(pandas.DataFrame(data=response_data["prediction"], columns=("Class Expression", "F1-Score")))
     # for rated_ce in response_data["prediction"]:
@@ -1923,3 +1956,12 @@ if uploaded_files is not None and uploaded_files != []:
 #
 #
 # st.button('Continue from Step 5.2 (CEL-Deploy)', on_click=continue_cel_deploy)
+
+def send_tentris_req():
+    global experiment_data
+    experiment_data = create_experiment_data()
+    start_tentris("http://example.org/enexa/2026ae4f-951c-4245-9c79-0b4307438e0f",
+                  "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
+
+
+st.button('Continue from Step 4 (Tentris)', on_click=send_tentris_req)
