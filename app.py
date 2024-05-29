@@ -144,9 +144,9 @@ def add_resource_to_service(experiment_resource, relative_file_location_inside_e
 
     ttl_for_registering_the_file_upload_as_jsonld = turtle_to_jsonld(ttl_for_registering_the_file_upload)
 
-    with st.expander("➕ " + label_for_addition):
-        st.code(ttl_for_registering_the_file_upload, language="turtle")
-        st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
+    # with st.expander("➕ " + label_for_addition):
+    #     st.code(ttl_for_registering_the_file_upload, language="turtle")
+    #     st.code(ttl_for_registering_the_file_upload_as_jsonld, language="json")
 
     response = requests.post(SERVER_ENDPOINT + "/add-resource", data=ttl_for_registering_the_file_upload_as_jsonld,
                              headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
@@ -360,7 +360,7 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
                                                            "http://w3id.org/dice-research/enexa/ontology#containerName")
             url_expl_service = "http://enexa-demo.cs.uni-paderborn.de/"+container_name_explain+"/"
 
-            st.info(f'Loading explanation module for {chatbot_label} , please wait ...')
+            #st.info(f'Loading explanation module for {chatbot_label} , please wait ...')
             time.sleep(sleep_Before_show_explanation_link_in_seconds)
 
             #st.markdown('[Explanation chatbot for {chatbot_label}]('+url_expl_service+')')
@@ -918,21 +918,18 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "path_embeddings": locationOfCSVFile
     }
 
-    st.info("Training started")
+    #st.info("Training started")
     # Sending the GET request with headers and JSON data
     response = requests.get(url, headers=headers, data=json.dumps(data))
 
     # Check for successful response
-    if response.status_code == 200:
-        # Process the JSON response data
-        #st.info(response.json())
-        st.info("Training finished")
-    else:
+    if response.status_code != 200:
+
         # Handle error
         st.error(f"Error: {response.text}")
         st.error(response)
 
-    st.info("Evaluating")
+    #st.info("Evaluating")
 
     data = {
         "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
@@ -943,14 +940,14 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "path_to_pretrained_drill": "pretrained_drill",
         "path_embeddings": locationOfCSVFile
     }
-    st.info(data)
+    #st.info(data)
     response = requests.get(url, headers=headers, data=json.dumps(data))
-
+    first_example_label = "$E^+=\\Big\{$Adidas AG (Q3895), Heineken (Q180855)$\\Big\}, E^-=\\Big\{$Nike (Q483915), Alibaba Grou (Q1359568), Metro AG (Q169167), University of North Carolina at Chapel Hill (Q192334), Mars Incorporated (Q695087), Nissan Motor Co. Ltd. (Q20165), Heineken Experience (Q2087161)$\\Big\}$"
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
         #st.info(response.json())
-        with st.expander("⚙️ Results 1st example"):
+        with st.expander("⚙️ "+first_example_label):
             data = json.loads(response.text)
             df = pd.DataFrame(data['Results'])
             df = df[['Rank', 'Prediction', 'F1', 'Verbalization']]
@@ -961,7 +958,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         st.error(f"Error: {response.text}")
         st.error(response)
 
-    st.info("Evaluating second example ")
+    #st.info("Evaluating second example ")
 
     data = {
         "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"],
@@ -972,14 +969,14 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "path_to_pretrained_drill": "pretrained_drill",
         "path_embeddings": locationOfCSVFile
     }
-    st.info(data)
+    #st.info(data)
     response = requests.get(url, headers=headers, data=json.dumps(data))
-
+    second_example_label = "$E^+=\\Big\{$Adidas AG (Q3895), Dickies (Q114913), Metro AG (Q169167)$\\Big\}, E^-=\\Big\{$Nike (Q483915), Alibaba Grou (Q1359568), Nissan Motor Co. Ltd. (Q20165)$\\Big\}$"
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
         #st.info(response.json())
-        with st.expander("⚙️ Results 2nd example"):
+        with st.expander("⚙️ "+second_example_label):
             data = json.loads(response.text)
             df = pd.DataFrame(data['Results'])
             df = df[['Rank', 'Prediction', 'F1', 'Verbalization']]
@@ -1012,7 +1009,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "learned_expression": "Sponsor (P859)",
         "positive_examples": {
             "Adidas AG (Q3895)": "German multinational corporation",
-            "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories"
+            "Heineken (Q180855)": "Dutch beer company"
         },
         "negative_examples": {
             "Nike (Q483915)": "American athletic equipment company",
@@ -1037,7 +1034,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "learned_expression": "named after (P138)",
         "positive_examples": {
             "Adidas AG (Q3895)": "German multinational corporation",
-            "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories",
+            "Heineken (Q180855)": "Dutch beer company",
             "Metro AG (Q169167)": "German wholesale company"
         },
         "negative_examples": {
@@ -1149,8 +1146,7 @@ def start_cel_step(experiment_resource, tripleStoreIRI):
 def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri):
     # transform nt file to owl
     # st.info("starting cel transform step experiment_resource : "+experiment_resource+" repaired_abox_iri : " +repaired_abox_iri+" wikidata5m_iri : "+wikidata5m_iri)
-    st.info(
-        "starting cel transform step experiment_resource : " + experiment_resource + " repaired_abox_iri : " + repaired_abox_iri + " wikidata5m_iri : " + wikidata5m_iri)
+    #st.info("starting cel transform step experiment_resource : " + experiment_resource + " repaired_abox_iri : " + repaired_abox_iri + " wikidata5m_iri : " + wikidata5m_iri)
     cel_transform_experiment_data = experiment_data  # create_experiment_data()
     cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
     cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
@@ -1957,11 +1953,11 @@ if uploaded_files is not None and uploaded_files != []:
 #
 # st.button('Continue from Step 5.2 (CEL-Deploy)', on_click=continue_cel_deploy)
 
-def send_tentris_req():
-    global experiment_data
-    experiment_data = create_experiment_data()
-    start_tentris("http://example.org/enexa/2026ae4f-951c-4245-9c79-0b4307438e0f",
-                  "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
-
-
-st.button('Continue from Step 4 (Tentris)', on_click=send_tentris_req)
+# def send_tentris_req():
+#     global experiment_data
+#     experiment_data = create_experiment_data()
+#     start_tentris("http://example.org/enexa/2026ae4f-951c-4245-9c79-0b4307438e0f",
+#                   "http://example.org/enexa/76fe2f40-9fe8-4b1a-9e09-d817e6591dc2")
+#
+#
+# st.button('Continue from Step 4 (Tentris)', on_click=send_tentris_req)
