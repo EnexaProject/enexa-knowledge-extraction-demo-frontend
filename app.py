@@ -1083,7 +1083,7 @@ def process_verbalization(expression, wikidata_label_dict):
         found_id = expression[match.start():last_end_pos]
         # Replace with the Wikidata IRI label
         # parts.append("{0} ({1})".format(wikidata_label_dict[found_id],found_id))
-        parts.append("{0})".format(wikidata_label_dict[found_id]))
+        parts.append("{0}".format(wikidata_label_dict[found_id]))
     # Add the remaining string
     parts.append(expression[last_end_pos:])
     return ''.join(parts)
