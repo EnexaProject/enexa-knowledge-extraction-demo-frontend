@@ -961,7 +961,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
                 if (item['Prediction'] == "∃ P859⁻.(≥ 1 P366⁻.⊤)"):
                     item['Prediction'] = "∃ P859⁻.(∃ P366⁻.⊤)"
 
-                item['Verbalization'] = process_verbalization(item['Prediction'], wikidata_label_dict)
+                item['Prediction with labels'] = process_verbalization(item['Prediction'], wikidata_label_dict)
 
 
 
@@ -996,7 +996,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
             data_response_second_example = json.loads(response.text)
 
             for item in data_response_second_example['Results']:
-                item['Verbalization'] = process_verbalization(item['Prediction'], wikidata_label_dict)
+                item['Prediction with labels'] = process_verbalization(item['Prediction'], wikidata_label_dict)
 
             df = pd.DataFrame(data_response_second_example['Results'])
             df = df[['Rank', 'Prediction', 'F1', 'Prediction with labels']]
@@ -1082,7 +1082,8 @@ def process_verbalization(expression, wikidata_label_dict):
         last_end_pos = match.end()
         found_id = expression[match.start():last_end_pos]
         # Replace with the Wikidata IRI label
-        parts.append("{0} ({1})".format(wikidata_label_dict[found_id],found_id))
+        # parts.append("{0} ({1})".format(wikidata_label_dict[found_id],found_id))
+        parts.append("{0})".format(wikidata_label_dict[found_id]))
     # Add the remaining string
     parts.append(expression[last_end_pos:])
     return ''.join(parts)
