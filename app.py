@@ -966,7 +966,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
 
 
             df = pd.DataFrame(data_response_first_example['Results'])
-            df = df[['Rank', 'Prediction', 'F1', 'Verbalization']]
+            df = df[['Rank', 'Prediction', 'F1', 'Prediction with labels']]
 
             st.table(df.set_index('Rank'))
     else:
@@ -999,7 +999,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
                 item['Verbalization'] = process_verbalization(item['Prediction'], wikidata_label_dict)
 
             df = pd.DataFrame(data_response_second_example['Results'])
-            df = df[['Rank', 'Prediction', 'F1', 'Verbalization']]
+            df = df[['Rank', 'Prediction', 'F1', 'Prediction with labels']]
 
             st.table(df.set_index('Rank'))
     else:
@@ -1025,7 +1025,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     st.subheader("6 Running explaining module")
     #open explanation module
     explanation_json_file = {
-        "learned_expression": data_response_first_example['Results'][0]['Verbalization'],
+        "learned_expression": data_response_first_example['Results'][0]['Prediction with labels'],
         "positive_examples": {
             "Adidas AG (Q3895)": "German multinational corporation",
             "Heineken (Q180855)": "Dutch beer company"
@@ -1050,7 +1050,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     ###### second example
     # open explanation module
     explanation_json_file = {
-        "learned_expression": data_response_second_example['Results'][0]['Verbalization'],
+        "learned_expression": data_response_second_example['Results'][0]['Prediction with labels'],
         "positive_examples": {
             "Nike (Q483915)": "American athletic equipment company",
             "Alibaba Group (Q1359568)": "Chinese multinational technology company",
