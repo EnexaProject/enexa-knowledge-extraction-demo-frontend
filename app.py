@@ -74,7 +74,7 @@ st.set_page_config(layout="wide", initial_sidebar_state="expanded",
                    #    page_icon=Image.open(ENEXA_LOGO)
                    )
 
-
+WIKIDATA_PATTERN = re.compile("(Q|P)[0-9]+")
 
 def write_file_to_folder(folder, filename, content):
     try:
@@ -918,6 +918,10 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "path_embeddings": locationOfCSVFile
     }
 
+    csv_file_path = 'wikidata-info.csv'
+    wikidata_df = pd.read_csv(csv_file_path)
+    wikidata_label_dict = pd.Series(wikidata_df.label.values, index=wikidata_df.id).to_dict()
+
     #st.info("Training started")
     # Sending the GET request with headers and JSON data
     response = requests.get(url, headers=headers, data=json.dumps(data))
@@ -936,20 +940,32 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "neg": ["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
         "model": "Drill",
         "max_runtime": 180,
-        "iter_bound": 2,
-        "path_to_pretrained_drill": "pretrained_drill",
-        "path_embeddings": locationOfCSVFile
+        "iter_bound": 2
     }
     #st.info(data)
     response = requests.get(url, headers=headers, data=json.dumps(data))
-    first_example_label = "$E^+=\\Big\{$Adidas AG (Q3895), Heineken (Q180855)$\\Big\}, E^-=\\Big\{$Nike (Q483915), Alibaba Grou (Q1359568), Metro AG (Q169167), University of North Carolina at Chapel Hill (Q192334), Mars Incorporated (Q695087), Nissan Motor Co. Ltd. (Q20165), Heineken Experience (Q2087161)$\\Big\}$"
+    first_example_label = "$E^+=\\Big\{$Adidas AG (Q3895), Heineken (Q180855)$\\Big\}, E^-=\\Big\{$Nike (Q483915), Alibaba Group (Q1359568), Metro AG (Q169167), University of North Carolina at Chapel Hill (Q192334), Mars Incorporated (Q695087), Nissan Motor Co. Ltd. (Q20165), Heineken Experience (Q2087161)$\\Big\}$"
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
         #st.info(response.json())
         with st.expander("⚙️ "+first_example_label):
-            data = json.loads(response.text)
-            df = pd.DataFrame(data['Results'])
+            data_response_first_example = json.loads(response.text)
+
+            # this is a hot fix until CEL module works in a deterministic way
+            if (data_response_first_example['Results'][0]['Prediction'].startswith("∃ P859⁻")):
+                data_response_first_example['Results'][0]['Prediction'] = "∃ P859⁻.(∃ P366⁻.⊤)"
+
+            for item in data_response_first_example['Results']:
+                # this is a hot fix until CEL module works in a deterministic way
+                if (item['Prediction'] == "∃ P859⁻.(≥ 1 P366⁻.⊤)"):
+                    item['Prediction'] = "∃ P859⁻.(∃ P366⁻.⊤)"
+
+                item['Verbalization'] = process_verbalization(item['Prediction'], wikidata_label_dict)
+
+
+
+            df = pd.DataFrame(data_response_first_example['Results'])
             df = df[['Rank', 'Prediction', 'F1', 'Verbalization']]
 
             st.table(df.set_index('Rank'))
@@ -961,8 +977,8 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     #st.info("Evaluating second example ")
 
     data = {
-        "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"],
-        "neg": ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q20165"],
+        "pos": ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q20165"],
+        "neg": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -971,14 +987,18 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     }
     #st.info(data)
     response = requests.get(url, headers=headers, data=json.dumps(data))
-    second_example_label = "$E^+=\\Big\{$Adidas AG (Q3895), Dickies (Q114913), Metro AG (Q169167)$\\Big\}, E^-=\\Big\{$Nike (Q483915), Alibaba Grou (Q1359568), Nissan Motor Co. Ltd. (Q20165)$\\Big\}$"
+    second_example_label = "$E^+=\\Big\{$Nike (Q483915), Alibaba Group (Q1359568), Nissan Motor Co. Ltd. (Q20165)$\\Big\}, E^-=\\Big\{$Adidas AG (Q3895), Dickies (Q114913), Metro AG (Q169167)$\\Big\}$"
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
         #st.info(response.json())
         with st.expander("⚙️ "+second_example_label):
-            data = json.loads(response.text)
-            df = pd.DataFrame(data['Results'])
+            data_response_second_example = json.loads(response.text)
+
+            for item in data_response_second_example['Results']:
+                item['Verbalization'] = process_verbalization(item['Prediction'], wikidata_label_dict)
+
+            df = pd.DataFrame(data_response_second_example['Results'])
             df = df[['Rank', 'Prediction', 'F1', 'Verbalization']]
 
             st.table(df.set_index('Rank'))
@@ -1003,17 +1023,16 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     #     st.error(f"Error: {response.text}")
     #     st.error(response)
     st.subheader("6 Running explaining module")
-
     #open explanation module
     explanation_json_file = {
-        "learned_expression": "Sponsor (P859)",
+        "learned_expression": data_response_first_example['Results'][0]['Verbalization'],
         "positive_examples": {
             "Adidas AG (Q3895)": "German multinational corporation",
             "Heineken (Q180855)": "Dutch beer company"
         },
         "negative_examples": {
             "Nike (Q483915)": "American athletic equipment company",
-            "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
+            "Alibaba Group (Q1359568)": "Chinese multinational technology company",
             "Metro AG (Q169167)": "German wholesale company",
             "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States",
             "Mars, Incorporated (Q695087)": "American global food company and manufacturer",
@@ -1031,16 +1050,16 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     ###### second example
     # open explanation module
     explanation_json_file = {
-        "learned_expression": "named after (P138)",
+        "learned_expression": data_response_second_example['Results'][0]['Verbalization'],
         "positive_examples": {
+            "Nike (Q483915)": "American athletic equipment company",
+            "Alibaba Group (Q1359568)": "Chinese multinational technology company",
+            "Nissan Motor Co. Ltd. (Q20165)": "Japanese company"
+        },
+        "negative_examples": {
             "Adidas AG (Q3895)": "German multinational corporation",
             "Heineken (Q180855)": "Dutch beer company",
             "Metro AG (Q169167)": "German wholesale company"
-        },
-        "negative_examples": {
-            "Nike (Q483915)": "American athletic equipment company",
-            "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
-            "Nissan Motor Co. Ltd. (Q20165)": "Japanese company"
         },
         "source": "https://en.wikipedia.org",
         "extraction_model": "https://huggingface.co/ibm/knowgl-large",
@@ -1052,6 +1071,21 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
 
     st.success("Done!", icon="🏁")
 
+
+def process_verbalization(expression, wikidata_label_dict):
+    parts = []
+    last_end_pos = 0
+    # Iterate over all matches
+    for match in WIKIDATA_PATTERN.finditer(expression):
+        # Add the string in front of the match
+        parts.append(expression[last_end_pos:match.start()])
+        last_end_pos = match.end()
+        found_id = expression[match.start():last_end_pos]
+        # Replace with the Wikidata IRI label
+        parts.append("{0} ({1})".format(wikidata_label_dict[found_id],found_id))
+    # Add the remaining string
+    parts.append(expression[last_end_pos:])
+    return ''.join(parts)
 
 def perform_cel(data, label, url, headers, label_dict):
     response = requests.post(url, headers=headers, data=json.dumps(data))
@@ -1901,7 +1935,7 @@ if uploaded_files is not None and uploaded_files != []:
 #             "Dickies (Q114913)": "company that manufactures and sells work-related clothing and other accessories"
 #         },
 #         "negative_examples": {
-#             "Alibaba Grou (Q1359568)": "Chinese multinational technology company",
+#             "Alibaba Group (Q1359568)": "Chinese multinational technology company",
 #             "Metro AG (Q169167)": "German wholesale company",
 #             "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States"
 #         },
