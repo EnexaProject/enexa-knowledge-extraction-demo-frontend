@@ -1,5 +1,5 @@
 IMAGE=hub.cs.upb.de/enexa/images/enexa-ui-demo
-VERSION=1.0.0
+VERSION=1.3.0-tentris-demo
 TAG=$(IMAGE):$(VERSION)
 
 build:
