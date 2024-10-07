@@ -85,7 +85,12 @@ def create_experiment_data():
     """
     returns the data of a fresh experiment, with experiment IRI and ...
   """
-    response = requests.post(SERVER_ENDPOINT + "/start-experiment", data="")
+    # Set the headers
+    headers = {
+        "Accept": "application/ld+json",
+        "Content-Type": "application/ld+json"
+    }
+    response = requests.post(SERVER_ENDPOINT + "/start-experiment", data="", headers=headers)
     if response.status_code == 200 or response.status_code == 201:
         st.code(pprint.pformat(response.json(), indent=2), language="json")
         return {
@@ -563,21 +568,22 @@ def extract_cel_trained_kge_from_triplestore(triple_store_endpoint, graph_name, 
 
 def add_module_configuration_to_enexa_service(experiment_resource, relative_file_location_inside_enexa_dir,
                                               uploaded_filename):
-    print("add_module_configuration_to_enexa_service")
+    st.info("add_module_configuration_to_enexa_service")
     # copy the file in share directory
-    print("experiment_resource: " + experiment_resource)
-    print("relative_file_location_inside_enexa_dir: " + relative_file_location_inside_enexa_dir)
-    print("uploaded_filename: " + uploaded_filename)
-
+    st.info( experiment_resource)
+    st.info( relative_file_location_inside_enexa_dir)
+    st.info( uploaded_filename)
+    st.info(ENEXA_SHARED_DIRECTORY)
     # if path is not there create it
     path_to_check = ENEXA_SHARED_DIRECTORY + "/" + experiment_resource.replace("http://", "").replace(
-        "enexa-dir://", "")
-    print("check this path " + path_to_check)
+        "enexa-dir://", "").replace("example.org", "app3").replace("/resource", "")
+    st.info( path_to_check)
     if not os.path.exists(path_to_check):
         os.makedirs(path_to_check)
+
     shutil.copyfile(ENEXA_SHARED_DIRECTORY + "/" + uploaded_filename,
                     ENEXA_SHARED_DIRECTORY + "/" + experiment_resource.replace("http://", "").replace(
-                        "enexa-dir://", "") + "/" + uploaded_filename)
+        "enexa-dir://", "").replace("example.org", "app3").replace("/resource", "") + "/" + uploaded_filename)
     # add resource
     ttl_for_registering_the_file_upload = """
     @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
