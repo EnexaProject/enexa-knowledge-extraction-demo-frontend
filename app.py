@@ -572,16 +572,18 @@ logging.info("uploaded file is :" + str(uploaded_files))
 
 
 def extract_X_from_turtle(turtle_text, x):
+    logging.info("----------extract_X_from_turtle-------------")
     logging.info("turtle_text is :" + str(turtle_text))
     logging.info("x is :" + str(x))
     graph = Graph()
     # Parse the Turtle file
     graph.parse(data=turtle_text, format="ttl")
     query = "SELECT ?id ?o \n WHERE { \n ?id <" + x + "> ?o .\n }"
-    # st.info(query)
+    st.info(query)
     # Execute the query
     results = graph.query(query)
     # Extract and return IDs
+    st.json(results)
     o = [str(result["o"]) for result in results][0]
     logging.info("extracted X is : " + o)
     return o
@@ -869,12 +871,14 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
 
     # cel_deployed_module_instance_iri = extract_id_from_turtle(response_cel_step_deployed.text)
 
-    read_container_logs_stop_when_reach_x(container_id_cel_step_deployed,
+    read_container_logs_stop_when_reach_x(container_id_cel_step_deployed,"default",
                                           "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)")
 
     # send , embedding_csv_iri, cel_trained_file_kge_iri with get request
 
     url = "http://" + container_name_cel_step_deployed + ":8000/cel"
+
+    st.info("url is :"+url)
 
     headers = {
         "Content-Type": "application/json",
@@ -907,7 +911,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
                                                    META_DATA_GRAPH_NAME,
                                                    embedding_csv_iri)
 
-    locationOfCSVFile = locationOfCSVFile.replace('enexa-dir:/', '/home/shared')
+    locationOfCSVFile = locationOfCSVFile.replace('enexa-dir:/', '/enexa')
 
     # evaluate 'http://0.0.0.0:8000/cel' '{"pos":["http://www.benchmark.org/family#F2F14"], "neg":["http://www.benchmark.org/family#F10F200"], "model":"Drill","pretrained":"pretrained","path_embeddings":"embeddings/Keci_entity_embeddings.csv"}'
     # First example: BASF, Adidas vs. Bosch
@@ -1297,7 +1301,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         container_name_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
                                                                      "http://w3id.org/dice-research/enexa/ontology#containerName")
 
-        read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed, "0.0.0.0:9080")
+        read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed,"default", "0.0.0.0:9080")
 
         #st.write("✅ Tentris is ready.")
         # st.success("Tentris is ready",icon="✅")
@@ -1641,7 +1645,7 @@ def start_repair_step(experiment_resource, module_instance_id):
             start_tentris(experiment_resource, repaired_a_box_iri)
 
 
-def print_container_logs(pod_name, namespace="default", timeout=300, interval=5):
+def print_container_logs(pod_uid, namespace="default", timeout=300, interval=5):
     returnlines = []
 
     try:
@@ -1651,6 +1655,20 @@ def print_container_logs(pod_name, namespace="default", timeout=300, interval=5)
 
         # Create a Kubernetes API client
         v1 = client.CoreV1Api()
+
+        # Get the list of pods in the namespace to match by UID
+        pods = v1.list_namespaced_pod(namespace=namespace)
+        pod_name = None
+
+        # Find the pod by its UID
+        for pod in pods.items:
+            if pod.metadata.uid == pod_uid:
+                pod_name = pod.metadata.name
+                break
+
+        if not pod_name:
+            st.error(f"No pod found with UID {pod_uid}")
+            return returnlines
 
         # Start waiting for the pod to be in the Running state
         end_time = time.time() + timeout  # Set the timeout limit
@@ -1727,7 +1745,7 @@ def print_container_logs(pod_name, namespace="default", timeout=300, interval=5)
 #     return returnlines
 
 
-def read_container_logs_stop_when_reach_x(pod_name, namespace="default", x="", timeout=300, interval=5):
+def read_container_logs_stop_when_reach_x(pod_uid, namespace="default", x="", timeout=300, interval=5):
     returnlines = []
 
     try:
@@ -1737,6 +1755,20 @@ def read_container_logs_stop_when_reach_x(pod_name, namespace="default", x="", t
 
         # Create a Kubernetes API client
         v1 = client.CoreV1Api()
+
+        # Get the list of pods in the namespace to match by UID
+        pods = v1.list_namespaced_pod(namespace=namespace)
+        pod_name = None
+
+        # Find the pod by its UID
+        for pod in pods.items:
+            if pod.metadata.uid == pod_uid:
+                pod_name = pod.metadata.name
+                break
+
+        if not pod_name:
+            st.error(f"No pod found with UID {pod_uid}")
+            return returnlines
 
         # Wait for the pod to be in the Running state
         end_time = time.time() + timeout  # Set the timeout limit
@@ -1792,7 +1824,6 @@ def get_the_status(SERVER_ENDPOINT, module_instance_iri, experiment_resource):
 
 if uploaded_files is not None and uploaded_files != []:
     for uploaded_file in uploaded_files:
-
         # st.subheader(" Preparing...")
         st.subheader("1️ Running extraction module")
 
