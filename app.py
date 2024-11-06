@@ -270,7 +270,7 @@ def start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri):
     @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
     [] rdf:type enexa:ModuleInstance ;
     enexa:experiment <{}> ;
-    alg:instanceOf <http://w3id.org/dice-research/enexa/module/tentris/0.3.0-SNAPSHOT-1> ;
+    alg:instanceOf <http://w3id.org/dice-research/enexa/module/tentris/0.3.1-3> ;
     <http://w3id.org/dice-research/enexa/module/tentris/parameter/file> <{}>.
     """.format(experiment_resource, wikidata5m_unfiltered_iri)
 
@@ -357,8 +357,16 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
             response_start_module_explain = requests.post(start_container_endpoint, data=start_module_message_as_jsonld, headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
             container_name_explain = extract_X_from_turtle(response_start_module_explain.text,
                                                            "http://w3id.org/dice-research/enexa/ontology#containerName")
-            url_expl_service = "http://enexa-demo.cs.uni-paderborn.de/"+container_name_explain+"/"
 
+            port = extract_X_from_turtle(response_start_module_explain.text,
+                                                           "http://w3id.org/dice-research/enexa/ontology#moduleURL")
+            #1 st.info("url is "+port)
+            port = port.split(':')[1]
+            #1 st.info("port is " + port)
+
+
+            #url_expl_service = "http://enexa-test-exec2.cs.upb.de:"+port+"/"+str(container_name_explain)+"/"
+            url_expl_service = "http://enexa-test-exec2.cs.upb.de:" + port # "/" + str(container_name_explain) + "/"
             #st.info(f'Loading explanation module for {chatbot_label} , please wait ...')
             time.sleep(sleep_Before_show_explanation_link_in_seconds)
 
@@ -572,21 +580,25 @@ logging.info("uploaded file is :" + str(uploaded_files))
 
 
 def extract_X_from_turtle(turtle_text, x):
-    logging.info("----------extract_X_from_turtle-------------")
-    logging.info("turtle_text is :" + str(turtle_text))
-    logging.info("x is :" + str(x))
+    #1 st.info("----------extract_X_from_turtle-------------")
+    #1 st.info("turtle_text is :" + str(turtle_text))
+    #1 st.info("x is :" + str(x))
     graph = Graph()
     # Parse the Turtle file
     graph.parse(data=turtle_text, format="ttl")
     query = "SELECT ?id ?o \n WHERE { \n ?id <" + x + "> ?o .\n }"
-    st.info(query)
+    #1 st.info(query)
     # Execute the query
     results = graph.query(query)
     # Extract and return IDs
-    st.json(results)
-    o = [str(result["o"]) for result in results][0]
-    logging.info("extracted X is : " + o)
-    return o
+    o_list = [str(result["o"]) for result in results]
+    if o_list:
+        o = o_list[0]  # Get the first result
+        #1 st.info("Extracted X is : " + o)
+        return o
+    else:
+        st.warning("No results found for the given query.")
+        return None
 
 
 def extract_id_from_turtle(turtle_text):
@@ -611,12 +623,12 @@ def extract_id_from_turtle(turtle_text):
 
 
 def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_instance_iri):
-    st.info("debug: running this query X is "+str(X)+" triple_store_endpoint is : "+str(triple_store_endpoint)+" graph_name is : "+str(graph_name)+" module_instance_iri is : "+str(module_instance_iri))
+    #1 st.info("debug: running this query X is "+str(X)+" triple_store_endpoint is : "+str(triple_store_endpoint)+" graph_name is : "+str(graph_name)+" module_instance_iri is : "+str(module_instance_iri))
     logging.info("extract_X_from_triplestore"+str(module_instance_iri))
     g = Graph()
     sparql = SPARQLWrapper(triple_store_endpoint)
     query_str = " SELECT ?iri \n WHERE {\n GRAPH <" + str(graph_name) + "> {\n <" + str(module_instance_iri) + "> <" + X + "> ?iri. } }"
-    st.info("debug: query is :"+query_str)
+    #1 st.info("debug: query is :"+query_str)
     logging.info(query_str)
     sparql.setQuery(query_str)
     sparql.setReturnFormat('json')
@@ -629,7 +641,7 @@ def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_inst
     if returnIRI == "":
         st.error("there is no iri in the triple store for <"+str(module_instance_iri)+"><" + X + ">")
     else:
-        st.info("debug: returnIRI is"+str(returnIRI))
+        #1 st.info("debug: returnIRI is"+str(returnIRI))
         return returnIRI
 
 
@@ -753,7 +765,7 @@ def extract_cel_trained_kge_from_triplestore(triple_store_endpoint, graph_name, 
 
 
 def add_tentris_endpoint_to_metadata(experiment_resource, tentris_endpoint):
-    st.info("add tentris endpoint to triplestore : " + tentris_endpoint)
+    #1 st.info("add tentris endpoint to triplestore : " + tentris_endpoint)
 
     # Split the experimentIRI using "/"
     path_elements = experiment_resource.split("/")
@@ -779,7 +791,7 @@ def add_tentris_endpoint_to_metadata(experiment_resource, tentris_endpoint):
 
     response = requests.post(SERVER_ENDPOINT + "/add-resource", data=ttl_for_registering_the_tentris_endpoint_as_jsonld,
                              headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
-    st.info("endpoint added :" + str(response))
+    #1 st.info("endpoint added :" + str(response))
     return response
 
 
@@ -818,7 +830,7 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
     # Try to copy the file and check if it was successful
     try:
         shutil.copyfile(source_path, destination_path)
-        #st.info(f"File copied successfully from {source_path} to {destination_path}")
+        #1 st.info("File copied successfully ")
     except shutil.SameFileError:
         st.error("Source and destination represents the same file.")
     except IsADirectoryError:
@@ -854,8 +866,21 @@ def add_module_configuration_to_enexa_service(experiment_resource, relative_file
     return response
 
 
+def extract_ip(container_module_URL):
+    # Split by '://' to remove the protocol
+    without_protocol = container_module_URL.split('://')[-1]
+
+    # Split by ':' to remove the port if present
+    ip_with_port = without_protocol.split(':')[0]
+
+    # Return the IP address part before any '/' or other path info
+    ip = ip_with_port.split('/')[0]
+
+    return ip
+
+
 def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_iri):
-    #st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tripleStoreIRI :" + tripleStoreIRI + "embedding_csv_iri :" + embedding_csv_iri)
+    #1 st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tripleStoreIRI :" + tripleStoreIRI + "embedding_csv_iri :" + embedding_csv_iri)
 
     cel_service_experiment_data = experiment_data  # create_experiment_data()
     cel_service_experiment_resource = cel_service_experiment_data["experiment_iri"]
@@ -866,19 +891,23 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
     container_id_cel_step_deployed = extract_X_from_turtle(response_cel_step_deployed.text,
                                                            "http://w3id.org/dice-research/enexa/ontology#containerId")
 
-    container_name_cel_step_deployed = extract_X_from_turtle(response_cel_step_deployed.text,
-                                                             "http://w3id.org/dice-research/enexa/ontology#containerName")
+    container_module_URL = extract_X_from_turtle(response_cel_step_deployed.text,
+                                                             "http://w3id.org/dice-research/enexa/ontology#moduleURL")
 
+
+    #1 st.info("container_module_URL is "+str(container_module_URL))
     # cel_deployed_module_instance_iri = extract_id_from_turtle(response_cel_step_deployed.text)
+
+    podIP = extract_ip(container_module_URL)
 
     read_container_logs_stop_when_reach_x(container_id_cel_step_deployed,"default",
                                           "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)")
 
     # send , embedding_csv_iri, cel_trained_file_kge_iri with get request
 
-    url = "http://" + container_name_cel_step_deployed + ":8000/cel"
+    url = "http://" + podIP + ":8000/cel"
 
-    st.info("url is :"+url)
+    #1 st.info("CEL url is :"+url)
 
     headers = {
         "Content-Type": "application/json",
@@ -912,7 +941,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
                                                    embedding_csv_iri)
 
     locationOfCSVFile = locationOfCSVFile.replace('enexa-dir:/', '/enexa')
-
+    #1 st.info("locationOfCSVFile is "+str(locationOfCSVFile))
     # evaluate 'http://0.0.0.0:8000/cel' '{"pos":["http://www.benchmark.org/family#F2F14"], "neg":["http://www.benchmark.org/family#F10F200"], "model":"Drill","pretrained":"pretrained","path_embeddings":"embeddings/Keci_entity_embeddings.csv"}'
     # First example: BASF, Adidas vs. Bosch
     data = {
@@ -940,7 +969,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         st.error(f"Error: {response.text}")
         st.error(response)
 
-    #st.info("Evaluating")
+    st.info("Evaluating")
 
     data = {
         "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
@@ -949,7 +978,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
         "max_runtime": 180,
         "iter_bound": 2
     }
-    #st.info(data)
+
     response = requests.get(url, headers=headers, data=json.dumps(data))
     first_example_label = "$E^+=\\Big\{$Adidas AG (Q3895), Heineken (Q180855)$\\Big\}, E^-=\\Big\{$Nike (Q483915), Alibaba Group (Q1359568), Metro AG (Q169167), University of North Carolina at Chapel Hill (Q192334), Mars Incorporated (Q695087), Nissan Motor Co. Ltd. (Q20165), Heineken Experience (Q2087161)$\\Big\}$"
     # Check for successful response
@@ -1105,7 +1134,7 @@ def perform_cel(data, label, url, headers, label_dict):
 
 def cel_response_to_markdown(response_data, label_dict):
     output = ""
-    st.info(response_data)
+    #1 st.info(response_data)
     for rated_ce in response_data["Results"]:
         rated_ce[0] = create_pretty_ce(rated_ce[0], label_dict)
     st.table(pandas.DataFrame(data=response_data["prediction"], columns=("Class Expression", "F1-Score")))
@@ -1294,18 +1323,18 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         wikidata5m_unfiltered_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
 
         response_tentris_step = start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri)
-
+        #1 st.info("text is "+str(response_tentris_step.text))
         container_id_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
                                                                    "http://w3id.org/dice-research/enexa/ontology#containerId")
 
-        container_name_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
-                                                                     "http://w3id.org/dice-research/enexa/ontology#containerName")
+        # container_name_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
+        #                                                              "http://w3id.org/dice-research/enexa/ontology#containerName")
 
         read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed,"default", "0.0.0.0:9080")
 
-        #st.write("✅ Tentris is ready.")
-        # st.success("Tentris is ready",icon="✅")
-        triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
+        st.write("✅ Tentris is ready.")
+        st.success("Tentris is ready",icon="✅")
+        #triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
 
         #add_tentris_endpoint_responce = add_tentris_endpoint_to_metadata(experiment_resource, triple_store_endpoint)
 
@@ -1798,7 +1827,7 @@ def read_container_logs_stop_when_reach_x(pod_uid, namespace="default", x="", ti
                 st.text(log_line)
                 returnlines.append(log_line)  # Store log line
                 if x in log_line:  # Stop when the specific log line is found
-                    st.info(f"Stopped reading logs for {pod_name} as '{x}' was found.")
+                    #1 st.info(f"Stopped reading logs for {pod_name} as '{x}' was found.")
                     return returnlines
 
     except client.exceptions.ApiException as e:
@@ -1828,7 +1857,7 @@ if uploaded_files is not None and uploaded_files != []:
         st.subheader("1️ Running extraction module")
 
         skip_extraction = False  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
-        extraction_previous_run = "http://example.org/enexa/4d4c7922-7ae8-4cb1-8e49-394d6670634b"
+        extraction_previous_run = "http://example.org/resource/29cd94fc-494d-488d-84f7-8406808efb93"
         # create experiment instance
         experiment_data = create_experiment_data()
 
@@ -1840,7 +1869,7 @@ if uploaded_files is not None and uploaded_files != []:
 
         # add resource config file
         # experiment_resource, relative_file_location_inside_enexa_dir,uploaded_filename
-        st.info("debug: start copy the generation parameters json experiment_resource is"+str(experiment_resource)+" relative_file_location_inside_enexa_dir is "+str(relative_file_location_inside_enexa_dir))
+        #st.info("debug: start copy the generation parameters json experiment_resource is"+str(experiment_resource)+" relative_file_location_inside_enexa_dir is "+str(relative_file_location_inside_enexa_dir))
         responce_configFile_resource = add_module_configuration_to_enexa_service(experiment_resource,
                                                                                  relative_file_location_inside_enexa_dir,
                                                                                  "generation_parameters.json",
@@ -1850,23 +1879,21 @@ if uploaded_files is not None and uploaded_files != []:
         else:
 
             st.success("ENEXA generation_parameters.json file upload registered successfully.")
-            # st.info(responce_configFile_resource.text)
+            #1 st.info(responce_configFile_resource.text)
             # configFile_resource = extract_id_from_turtle(responce_configFile_resource.text)
             # st.success("configFile_resource is task: {}".format(configFile_resource))
             generation_parameters_IRI = extract_id_from_turtle(responce_configFile_resource.text)
-            st.info("generation_parameters_IRI is : " +generation_parameters_IRI)
+            #1 st.info("generation_parameters_IRI is : " +generation_parameters_IRI)
             uploaded_filename = uploaded_file.name.replace(" ", "_")
             uploaded_file_content = uploaded_file.read()
 
             # UI file upload
-            st.info("write file to folder ENEXA_WRITEABLE_DIRECTORY is "+ENEXA_WRITEABLE_DIRECTORY)
+            #st.info("write file to folder ENEXA_WRITEABLE_DIRECTORY is "+ENEXA_WRITEABLE_DIRECTORY)
             write_file_to_folder(ENEXA_WRITEABLE_DIRECTORY, uploaded_filename, uploaded_file_content)
-            st.info(
-                "File" + str(uploaded_filename) + " uploaded successfully and stored in experiment's directory:" + str(
-                    ENEXA_WRITEABLE_DIRECTORY))
+            #st.info(                "File" + str(uploaded_filename) + " uploaded successfully and stored in experiment's directory:" + str(                    ENEXA_WRITEABLE_DIRECTORY))
             logging.info("File"+str(uploaded_filename)+" uploaded successfully and stored in experiment's directory:"+str(ENEXA_WRITEABLE_DIRECTORY))
             #logging.info("File {} uploaded successfully and stored in experiment's directory: {}".format(uploaded_filename,ENEXA_WRITEABLE_DIRECTORY))
-            # st.info("File :\" {} \" uploaded successfully and stored in experiment's directory: \" {} \" ".format(                uploaded_filename,                ENEXA_WRITEABLE_DIRECTORY))
+            #1 st.info("File :\" {} \" uploaded successfully and stored in experiment's directory: \" {} \" ".format(                uploaded_filename,                ENEXA_WRITEABLE_DIRECTORY))
 
             # send configuration file to ENEXA service
             # print ("*****relative_file_location_inside_enexa_dir is :"+relative_file_location_inside_enexa_dir)
@@ -1874,7 +1901,7 @@ if uploaded_files is not None and uploaded_files != []:
             # st.info("ENEXA_WRITEABLE_DIRECTORY is :" + ENEXA_WRITEABLE_DIRECTORY)
             # st.info("relative_file_location_inside_enexa_dir is :" + relative_file_location_inside_enexa_dir)
 
-            st.info("write file to folder relative_file_location_inside_enexa_dir is " + relative_file_location_inside_enexa_dir)
+            #1 st.info("write file to folder relative_file_location_inside_enexa_dir is " + relative_file_location_inside_enexa_dir)
             write_file_to_folder(relative_file_location_inside_enexa_dir, uploaded_filename, uploaded_file_content)
 
             response_adding_uploaded_file = add_resource_to_service(experiment_resource,
@@ -1888,7 +1915,7 @@ if uploaded_files is not None and uploaded_files != []:
                 st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
                 urls_to_process_iri = extract_id_from_turtle(response_adding_uploaded_file.text)
 
-                st.info("the ID for added resource (uploaded file) is: "+format(urls_to_process_iri))
+                #1 st.info("the ID for added resource (uploaded file) is: "+format(urls_to_process_iri))
 
                 # start a module (i.e., a new container instance of the demanded experiment will be started)
                 # st.info ("###configFile_resource is :" + str(generation_parameters_IRI))
@@ -1903,7 +1930,6 @@ if uploaded_files is not None and uploaded_files != []:
                 else:
                     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
                     st.info("Now, the ENEXA task should be started at the ENEXA platform. Please check the status of your task at the ENEXA platform. Request to {} done.".format(start_container_endpoint))
-                    st.info(str(response_start_module))
 
                     if skip_extraction:
                         module_instance_iri = extraction_previous_run
@@ -1912,11 +1938,11 @@ if uploaded_files is not None and uploaded_files != []:
                         container_id = extract_X_from_turtle(response_start_module.text,
                                                              "http://w3id.org/dice-research/enexa/ontology#containerId")
 
-                        st.info("container_id is : " + container_id)
+                        #1 st.info("container_id is : " + container_id)
                         print_container_logs(container_id)
 
                         if module_instance_iri:
-                            logging.info("id:"+ module_instance_iri)
+                            st.info("extraction module_instance_iri:"+ module_instance_iri)
                         else:
                             logging.info("No id found in JSON-LD")
 
@@ -1971,13 +1997,13 @@ if uploaded_files is not None and uploaded_files != []:
                         META_DATA_GRAPH_NAME,
                         module_instance_iri)
 
-                    st.info("debug extracted_file_iri is " + str(extracted_file_iri))
+                    #1 st.info("debug extracted_file_iri is " + str(extracted_file_iri))
 
                     file_path = extract_X_from_triplestore(
                         "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
                         META_DATA_GRAPH_NAME,
                         extracted_file_iri)
-                    st.info("debug file_path is "+str(file_path))
+                    #1 st.info("debug file_path is "+str(file_path))
                     file_path = file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
 
                     # lines = read_file(file_path, 200, "BASF")
