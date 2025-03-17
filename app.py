@@ -358,10 +358,16 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
             container_name_explain = extract_X_from_turtle(response_start_module_explain.text,
                                                            "http://w3id.org/dice-research/enexa/ontology#containerName")
 
-            port = extract_X_from_turtle(response_start_module_explain.text,
-                                                           "http://w3id.org/dice-research/enexa/ontology#moduleURL")
-            #1 st.info("url is "+port)
-            port = port.split(':')[1]
+            internal = extract_X_from_turtle(response_start_module_explain.text,
+                                                           "http://w3id.org/dice-research/enexa/ontology#internalEndpointURL")
+
+            external = extract_X_from_turtle(response_start_module_explain.text,
+                                         "http://w3id.org/dice-research/enexa/ontology#externalEndpointURL")
+
+            st.info("external"+external)
+            st.info("internal" + internal)
+
+            port = external.split(':')[1]
             #1 st.info("port is " + port)
 
 
@@ -879,6 +885,9 @@ def extract_ip(container_module_URL):
     return ip
 
 
+
+
+
 def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_iri):
     #1 st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tripleStoreIRI :" + tripleStoreIRI + "embedding_csv_iri :" + embedding_csv_iri)
 
@@ -892,7 +901,7 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
                                                            "http://w3id.org/dice-research/enexa/ontology#containerId")
 
     container_module_URL = extract_X_from_turtle(response_cel_step_deployed.text,
-                                                             "http://w3id.org/dice-research/enexa/ontology#moduleURL")
+                                                             "http://w3id.org/dice-research/enexa/ontology#externalEndpointURL")
 
 
     #1 st.info("container_module_URL is "+str(container_module_URL))
@@ -1107,6 +1116,34 @@ def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_ir
 
     st.success("Done!", icon="🏁")
 
+
+def stopExperiment(experiment_resource):
+    st.warning("stop the experiment ")
+    payload = {
+        "experimentIRI": experiment_resource
+    }
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+    try:
+        # Make the POST request
+        response = requests.post(SERVER_ENDPOINT + "/finish-experiment", json=payload, headers=headers)
+
+        # Check for HTTP errors
+        response.raise_for_status()
+
+        # Return the JSON response or raw text if no JSON
+        return response.json() if response.headers.get("Content-Type") == "application/json" else response.text
+
+    except requests.exceptions.HTTPError as http_err:
+        st.error(f"HTTP error occurred: {http_err}")
+        print(f"HTTP error occurred: {http_err}")
+        return None
+    except Exception as err:
+        st.error(f"Other error occurred: {err}")
+        print(f"Other error occurred: {err}")
+        return None
 
 def process_verbalization(expression, wikidata_label_dict):
     parts = []
@@ -1863,6 +1900,7 @@ if uploaded_files is not None and uploaded_files != []:
 
         experiment_resource = experiment_data["experiment_iri"]
         experiment_directory = experiment_data["experiment_folder"]
+
         # TODO
         # relative_file_location_inside_enexa_dir = ENEXA_SHARED_DIRECTORY + "/" + experiment_directory
         relative_file_location_inside_enexa_dir = experiment_directory
