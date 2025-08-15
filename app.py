@@ -1,6 +1,8 @@
 import json
 import random
 import time
+from urllib.error import HTTPError
+
 
 import rdflib
 import streamlit as st
@@ -8,6 +10,7 @@ from rdflib.compat import cast_bytes
 from rdflib.plugins.sparql import prepareQuery
 from rdflib.plugins.sparql.processor import SPARQLResult
 from streamlit.components.v1 import html
+from datetime import datetime
 
 from PIL import Image
 import logging
@@ -74,7 +77,7 @@ ENEXA_EXPERIMENT_SHARED_DIRECTORY_LITERAL = "http://w3id.org/dice-research/enexa
 
 # Streamlit init
 st.set_page_config(layout="wide", initial_sidebar_state="expanded",
-                   page_title="ENEXA Integration Demo",
+                   page_title="ENEXA Integration Demo V2.0.0",
                    #    page_icon=Image.open(ENEXA_LOGO)
                    )
 
@@ -84,7 +87,7 @@ def write_file_to_folder(folder, filename, content):
     try:
         logging.info("write_file_to_folder to : " + str(folder))
         logging.info("write_file_to_folder start copy uploaded " + str(filename))
-
+        logging.info("Content length: " + str(len(content)))
         folder = folder.replace("enexa-dir://", ENEXA_SHARED_DIRECTORY + "/")
         logging.info("write_file_to_folder folder is : " + str(folder) + " filename is :" + filename)
         # create directory if not exists
@@ -93,11 +96,21 @@ def write_file_to_folder(folder, filename, content):
             os.makedirs(folder)
 
         if isinstance(content, str):
+            logging.info("write as str ")
             with open(folder + "/" + filename, "w") as f:
                 f.write(content)
         elif isinstance(content, bytes):
+            logging.info("write as wb ")
             with open(folder + "/" + filename, "wb") as f:
+                # f.write(content)
+                logging.info("start writing ")
                 f.write(content)
+                logging.info("finish writing ")
+                logging.info("start flushing ")
+                f.flush()
+                logging.info("finish flushing ")
+                os.fsync(f.fileno())
+                logging.info("finish ... ")
         else:
             st.error(" unknown content")
     except Exception as exc:
@@ -167,6 +180,7 @@ def start_cel_service_module(experiment_resource, triplestoreIRI):
     logging.info("start_cel_service_module")
     logging.info("experiment_resource : " + experiment_resource)
     logging.info("triplestoreIRI : " + triplestoreIRI)
+
 
     start_module_message = """
         @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
@@ -522,7 +536,7 @@ def start_extraction_module(experiment_resource, urls_to_process_iri, configFile
 @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 [] rdf:type enexa:ModuleInstance ;
 enexa:experiment <{}> ;
-alg:instanceOf <http://w3id.org/dice-research/enexa/module/extraction/1.0.0> ;
+alg:instanceOf <http://w3id.org/dice-research/enexa/module/extraction/2.0.10> ;
 <http://w3id.org/dice-research/enexa/module/extraction/parameter/urls_to_process> <{}>;
 <http://w3id.org/dice-research/enexa/module/extraction/parameter/path_generation_parameters> <{}>.
 """.format(experiment_resource, urls_to_process_iri, configFile_iri)
@@ -567,7 +581,7 @@ def print_banner_to_console():
         logging.info(data)
 
 
-st.title("ENEXA Integration Demo")
+st.title("ENEXA Integration Demo V2.0.011 - 2.0.44 extraction")
 
 ##opening the image
 image = Image.open('images/Enexa-Demo-May-24.png')
@@ -629,26 +643,27 @@ def extract_id_from_turtle(turtle_text):
 
 
 def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_instance_iri):
-    #1 st.info("debug: running this query X is "+str(X)+" triple_store_endpoint is : "+str(triple_store_endpoint)+" graph_name is : "+str(graph_name)+" module_instance_iri is : "+str(module_instance_iri))
-    logging.info("extract_X_from_triplestore"+str(module_instance_iri))
-    g = Graph()
-    sparql = SPARQLWrapper(triple_store_endpoint)
-    query_str = " SELECT ?iri \n WHERE {\n GRAPH <" + str(graph_name) + "> {\n <" + str(module_instance_iri) + "> <" + X + "> ?iri. } }"
-    #1 st.info("debug: query is :"+query_str)
-    logging.info(query_str)
-    sparql.setQuery(query_str)
-    sparql.setReturnFormat('json')
-    results = sparql.query().convert()
-    st.json(results)
-    returnIRI = ""
-    for result in results["results"]["bindings"]:
-        returnIRI = result["iri"]["value"]
+     #1 st.info("debug: running this query X is "+str(X)+" triple_store_endpoint is : "+str(triple_store_endpoint)+" graph_name is : "+str(graph_name)+" module_instance_iri is : "+str(module_instance_iri))
+     logging.info("extract_X_from_triplestore"+str(module_instance_iri))
+     g = Graph()
+     sparql = SPARQLWrapper(triple_store_endpoint)
+     query_str = " SELECT ?iri \n WHERE {\n GRAPH <" + str(graph_name) + "> {\n <" + str(module_instance_iri) + "> <" + X + "> ?iri. } }"
+     #1 st.info("debug: query is :"+query_str)
+     logging.info(query_str)
+     sparql.setQuery(query_str)
+     sparql.setMethod('GET')
+     sparql.setReturnFormat('json')
+     results = sparql.query().convert()
+     st.json(results)
+     returnIRI = ""
+     for result in results["results"]["bindings"]:
+         returnIRI = result["iri"]["value"]
 
-    if returnIRI == "":
-        st.error("there is no iri in the triple store for <"+str(module_instance_iri)+"><" + X + ">")
-    else:
-        #1 st.info("debug: returnIRI is"+str(returnIRI))
-        return returnIRI
+     if returnIRI == "":
+         st.error("there is no iri in the triple store for <"+str(module_instance_iri)+"><" + X + ">")
+     else:
+         #1 st.info("debug: returnIRI is"+str(returnIRI))
+         return returnIRI
 
 
 def run_query_triplestore_subject(query_str, triple_store_endpoint, s):
@@ -660,6 +675,8 @@ def run_query_triplestore_subject(query_str, triple_store_endpoint, s):
     # st.info(query_str)
     sparql.setQuery(query_str)
     sparql.setReturnFormat('json')
+    sparql.setMethod('GET')
+    # sparql.addCustomHttpHeader("Accept", "application/sparql-results+json")
     results = sparql.query().convert()
 
     # st.info(str(results))
@@ -1367,7 +1384,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         # container_name_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
         #                                                              "http://w3id.org/dice-research/enexa/ontology#containerName")
 
-        read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed,"default", "0.0.0.0:9080")
+        read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed,"default", "Starting to listen on [::]:9080")
 
         st.write("✅ Tentris is ready.")
         st.success("Tentris is ready",icon="✅")
@@ -1432,6 +1449,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         #     start_cel_transform_step(experiment_resource, repaired_a_box_iri, wikidata5m_iri)
         tentris_iri = extract_id_from_turtle(response_tentris_step.text)
+
         #st.info("tentris is : "+tentris_iri)
         start_cel_step(experiment_resource, tentris_iri)
 
@@ -1742,9 +1760,13 @@ def print_container_logs(pod_uid, namespace="default", timeout=300, interval=5):
             pod_status = v1.read_namespaced_pod_status(name=pod_name, namespace=namespace)
 
             # Check if all containers are ready
-            container_statuses = pod_status.status.container_statuses
-            if container_statuses and all([container.ready for container in container_statuses]):
-                break  # All containers are ready
+            # container_statuses = pod_status.status.container_statuses
+            # if container_statuses and all([container.ready for container in container_statuses]):
+            #     break  # All containers are ready
+            phase = pod_status.status.phase
+            if phase in ["Running", "Succeeded", "Failed"]:
+                break
+
 
             # Display a message and wait for the specified interval
             st.info(
@@ -1842,9 +1864,12 @@ def read_container_logs_stop_when_reach_x(pod_uid, namespace="default", x="", ti
             pod_status = v1.read_namespaced_pod_status(name=pod_name, namespace=namespace)
 
             # Check if all containers are ready
-            container_statuses = pod_status.status.container_statuses
-            if container_statuses and all([container.ready for container in container_statuses]):
-                break  # All containers are ready
+            # container_statuses = pod_status.status.container_statuses
+            # if container_statuses and all([container.ready for container in container_statuses]):
+            #     break  # All containers are ready
+            phase = pod_status.status.phase
+            if phase in ["Running", "Succeeded", "Failed"]:
+                break
 
             # Display a message and wait for the specified interval
             st.info(
@@ -1893,8 +1918,8 @@ if uploaded_files is not None and uploaded_files != []:
         # st.subheader(" Preparing...")
         st.subheader("1️ Running extraction module")
 
-        skip_extraction = False  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
-        extraction_previous_run = "http://example.org/resource/29cd94fc-494d-488d-84f7-8406808efb93"
+        skip_extraction = True  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
+        extraction_previous_run = "http://example.org/resource/a5a580c9-480d-4c5e-af74-1c833b38b1ca"
         # create experiment instance
         experiment_data = create_experiment_data()
 
@@ -1907,7 +1932,7 @@ if uploaded_files is not None and uploaded_files != []:
 
         # add resource config file
         # experiment_resource, relative_file_location_inside_enexa_dir,uploaded_filename
-        #st.info("debug: start copy the generation parameters json experiment_resource is"+str(experiment_resource)+" relative_file_location_inside_enexa_dir is "+str(relative_file_location_inside_enexa_dir))
+        st.info("debug: start copy the generation parameters json experiment_resource is"+str(experiment_resource)+" relative_file_location_inside_enexa_dir is "+str(relative_file_location_inside_enexa_dir))
         responce_configFile_resource = add_module_configuration_to_enexa_service(experiment_resource,
                                                                                  relative_file_location_inside_enexa_dir,
                                                                                  "generation_parameters.json",
@@ -1915,7 +1940,6 @@ if uploaded_files is not None and uploaded_files != []:
         if responce_configFile_resource.status_code != 200:
             st.error("error in upload configuration file ")
         else:
-
             st.success("ENEXA generation_parameters.json file upload registered successfully.")
             #1 st.info(responce_configFile_resource.text)
             # configFile_resource = extract_id_from_turtle(responce_configFile_resource.text)
@@ -1929,7 +1953,7 @@ if uploaded_files is not None and uploaded_files != []:
             #st.info("write file to folder ENEXA_WRITEABLE_DIRECTORY is "+ENEXA_WRITEABLE_DIRECTORY)
             write_file_to_folder(ENEXA_WRITEABLE_DIRECTORY, uploaded_filename, uploaded_file_content)
             #st.info(                "File" + str(uploaded_filename) + " uploaded successfully and stored in experiment's directory:" + str(                    ENEXA_WRITEABLE_DIRECTORY))
-            logging.info("File"+str(uploaded_filename)+" uploaded successfully and stored in experiment's directory:"+str(ENEXA_WRITEABLE_DIRECTORY))
+            logging.info("File "+str(uploaded_filename)+" uploaded successfully and stored in experiment's directory:"+str(ENEXA_WRITEABLE_DIRECTORY))
             #logging.info("File {} uploaded successfully and stored in experiment's directory: {}".format(uploaded_filename,ENEXA_WRITEABLE_DIRECTORY))
             #1 st.info("File :\" {} \" uploaded successfully and stored in experiment's directory: \" {} \" ".format(                uploaded_filename,                ENEXA_WRITEABLE_DIRECTORY))
 
@@ -1958,6 +1982,9 @@ if uploaded_files is not None and uploaded_files != []:
                 # start a module (i.e., a new container instance of the demanded experiment will be started)
                 # st.info ("###configFile_resource is :" + str(generation_parameters_IRI))
                 logging.info("Starting extraction module ...")
+
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                st.write(f"🕒 Current time: {current_time}")
 
                 if not skip_extraction:
                     response_start_module = start_extraction_module(experiment_resource, urls_to_process_iri,
@@ -2056,6 +2083,10 @@ if uploaded_files is not None and uploaded_files != []:
                     st.write(
                         "✅ Module instance ({}) finished successfully.".format(
                             module_instance_iri))
+
+                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    st.write(f"🕒 Current time: {current_time}")
+
 
                     start_repair_step(experiment_resource, extracted_file_iri)
 

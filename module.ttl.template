@@ -1,0 +1,16 @@
+@base           <http://w3id.org/dice-research/enexa/module/ui-demo/> .
+@prefix alg:    <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+@prefix dcat:   <http://www.w3.org/ns/dcat#> .
+@prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+@prefix iana-a: <https://www.iana.org/assignments/media-types/application/> .
+@prefix iana-t: <https://www.iana.org/assignments/media-types/text/> .
+@prefix hobbit: <http://w3id.org/hobbit/vocab#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+<$(VERSION)> a enexa:Module ;
+	rdfs:label "ENEXA UI Demo"@en ;
+	rdfs:comment "This module is a UI demo for ENEXA platform."@en ;
+	hobbit:image <urn:container:docker:image:$(TAG)> .
