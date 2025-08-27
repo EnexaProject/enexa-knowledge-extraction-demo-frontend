@@ -176,10 +176,12 @@ def turtle_to_jsonld(turtle_data):
     return graph.serialize(format="json-ld", indent=2)
 
 
-def start_cel_service_module(experiment_resource, triplestoreIRI):
+def start_cel_service_module(experiment_resource, tentrisUrl):
     logging.info("start_cel_service_module")
     logging.info("experiment_resource : " + experiment_resource)
-    logging.info("triplestoreIRI : " + triplestoreIRI)
+    #logging.info("triplestoreIRI : " + triplestoreIRI)
+    logging.info("tentrisUrl : " + tentrisUrl)
+
 
 
     start_module_message = """
@@ -192,8 +194,8 @@ def start_cel_service_module(experiment_resource, triplestoreIRI):
         [] rdf:type enexa:ModuleInstance ;
         enexa:experiment <{}> ;
         alg:instanceOf <http://w3id.org/dice-research/enexa/module/cel-deploy/1.3.0> ;
-        <http://w3id.org/dice-research/enexa/module/cel-deploy/parameter/endpoint> <{}> .
-        """.format(experiment_resource, triplestoreIRI)
+        <http://w3id.org/dice-research/enexa/module/cel-deploy/parameter/endpoint> "{}" .
+        """.format(experiment_resource, tentrisUrl)
 
     start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
@@ -581,7 +583,7 @@ def print_banner_to_console():
         logging.info(data)
 
 
-st.title("ENEXA Integration Demo V2.0.011 - 2.0.44 extraction")
+st.title("ENEXA Integration Demo V2.0.011 - 2.0.44 extraction - tentris module 1 - enexa-ui-demo:2.0.028-test")
 
 ##opening the image
 image = Image.open('images/Enexa-Demo-May-24.png')
@@ -905,33 +907,37 @@ def extract_ip(container_module_URL):
 
 
 
-def start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_iri):
-    #1 st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tripleStoreIRI :" + tripleStoreIRI + "embedding_csv_iri :" + embedding_csv_iri)
+def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
+    st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tentrisUrl :" + tentrisUrl + "embedding_csv_iri :" + embedding_csv_iri)
 
     cel_service_experiment_data = experiment_data  # create_experiment_data()
     cel_service_experiment_resource = cel_service_experiment_data["experiment_iri"]
     cel_service_experiment_directory = cel_service_experiment_data["experiment_folder"]
     cel_service_relative_file_location_inside_enexa_dir = cel_service_experiment_directory
 
-    response_cel_step_deployed = start_cel_service_module(experiment_resource, tripleStoreIRI)
+    response_cel_step_deployed = start_cel_service_module(experiment_resource, tentrisUrl)
     container_id_cel_step_deployed = extract_X_from_turtle(response_cel_step_deployed.text,
                                                            "http://w3id.org/dice-research/enexa/ontology#containerId")
 
     container_module_URL = extract_X_from_turtle(response_cel_step_deployed.text,
                                                              "http://w3id.org/dice-research/enexa/ontology#externalEndpointURL")
+    container_module_URLinternal = extract_X_from_turtle(response_cel_step_deployed.text,
+                                     "http://w3id.org/dice-research/enexa/ontology#internalEndpointURL")
 
 
     #1 st.info("container_module_URL is "+str(container_module_URL))
     # cel_deployed_module_instance_iri = extract_id_from_turtle(response_cel_step_deployed.text)
 
-    podIP = extract_ip(container_module_URL)
+    #podIP = extract_ip(container_module_URL)
+    podIP_internal = extract_ip(container_module_URLinternal)
+
 
     read_container_logs_stop_when_reach_x(container_id_cel_step_deployed,"default",
                                           "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)")
 
     # send , embedding_csv_iri, cel_trained_file_kge_iri with get request
 
-    url = "http://" + podIP + ":8000/cel"
+    url = "http://" + podIP_internal + ":8000/cel"
 
     #1 st.info("CEL url is :"+url)
 
@@ -1213,8 +1219,14 @@ def create_pretty_ce(class_expression, label_dict):
     return class_expression
 
 
-def start_cel_step(experiment_resource, tripleStoreIRI):
+def start_cel_step(experiment_resource, tripleStoreIRI,tentris_module_URL,tentrisIP):
+
     st.subheader("5️ Running class expression learning")
+    tentrisUrl = "http://" + tentrisIP + ":9080/sparql"
+    st.info("tentrisUrl: "+tentrisUrl)
+    st.info("tripleStoreIRI: "+tripleStoreIRI)
+    st.info("tentris_module_URL: "+tentris_module_URL)
+    st.info("tentrisIP: "+tentrisIP)
     #st.info("Starting class expression learning ... experiment_resource : " + str(        experiment_resource) + " tripleStoreIRI: " + str(tripleStoreIRI))
     cel_experiment_data = experiment_data  # create_experiment_data()
 
@@ -1236,8 +1248,10 @@ def start_cel_step(experiment_resource, tripleStoreIRI):
         # st.info("Keci_entity_embeddings file add to servcie" + add_preproccessed_embedding_csv.text + " ")
 
         embedding_csv_iri = extract_id_from_turtle(add_preproccessed_embedding_csv.text)
-        # st.info("starting CEL training module ...")
-        start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_iri)
+        st.info("embedding_csv_iri is "+embedding_csv_iri )
+        #start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_iri)
+        start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri)
+
         # response_cel_step = start_cel_module(experiment_resource, owl_file_iri, embedding_csv_iri)
         # if (response_cel_step.status_code != 200):
         #     st.error("error in running transform module")
@@ -1268,90 +1282,90 @@ def start_cel_step(experiment_resource, tripleStoreIRI):
         #     start_cel_service_step(experiment_resource, owl_file_iri, embedding_csv_iri, cel_trained_file_kge_iri)
 
 
-def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri):
-    # transform nt file to owl
-    # st.info("starting cel transform step experiment_resource : "+experiment_resource+" repaired_abox_iri : " +repaired_abox_iri+" wikidata5m_iri : "+wikidata5m_iri)
-    #st.info("starting cel transform step experiment_resource : " + experiment_resource + " repaired_abox_iri : " + repaired_abox_iri + " wikidata5m_iri : " + wikidata5m_iri)
-    cel_transform_experiment_data = experiment_data  # create_experiment_data()
-    cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
-    cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
-    cel_transform_relative_file_location_inside_enexa_dir = cel_transform_experiment_directory
-
-    # add reduced kg as owl file w5M-rdf-1.owl
-    # st.info("use w5M-rdf-1.owl as kg file")
-    # # add wikidata5m
-    # responce_add_reduced_owl_file = add_module_configuration_to_enexa_service(
-    #     cel_transform_experiment_resource,
-    #     cel_transform_relative_file_location_inside_enexa_dir,
-    #     "w5M-rdf-1.owl")
-    # if (responce_add_reduced_owl_file.status_code != 200):
-    #     st.error("cannot add file: " + DATASET_NAME)
-    # else:
-    #     st.info("file add " + responce_add_reduced_owl_file.text + " ")
-    #
-    #     owl_file_iri = extract_id_from_turtle(responce_add_reduced_owl_file.text)
-    #     start_cel_step(experiment_resource, owl_file_iri)
-
-    # add wikidata5m
-    # responce_add_wikidata5m = add_module_configuration_to_enexa_service(
-    #    cel_transform_experiment_resource,
-    #    cel_transform_relative_file_location_inside_enexa_dir,
-    #    DATASET_NAME)
-    # if (responce_add_wikidata5m.status_code != 200):
-    #    st.error("cannot add file: " + DATASET_NAME)
-    # else:
-    #    st.info("file add " + responce_add_wikidata5m.text + " ")
-
-    #    wikidata5m_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
-    response_transform_step = start_cel_transform_module(experiment_resource, repaired_abox_iri, wikidata5m_iri)
-    # st.info(str(response_transform_step.status_code))
-    if (response_transform_step.status_code != 200):
-        st.error("error in running cel transform module")
-    else:
-        # st.info(" start cel transform strp")
-        cel_transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
-        # st.info(" cel_transform_step_module_instance_iri " + cel_transform_step_module_instance_iri)
-
-        if cel_transform_step_module_instance_iri:
-            logging.info("id:"+ cel_transform_step_module_instance_iri)
-        else:
-            logging.info("No id found in JSON-LD")
-            st.error("No iri for the last module found")
-        # st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
-        # st.info("experiment_resource is :" + experiment_resource)
-
-        # st.success("get status experiment_resource is : "+experiment_resource)
-        response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                               cel_transform_step_module_instance_iri,
-                                                               experiment_resource)
-        logging.info("status is : " + response_check_module_instance_status.text)
-        # st.info("response_check_module_instance_status code" + str(response_check_module_instance_status.status_code))
-
-        # Store the text of the info box in the session state
-        # st.session_state["info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
-        # st.info(st.session_state["info_box_text"])
-
-        # ask for status of the module instance until it is finished
-        elapsedTime = SLEEP_IN_SECONDS
-        while "exited" not in response_check_module_instance_status.text:
-            response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
-                                                                   cel_transform_step_module_instance_iri,
-                                                                   experiment_resource)
-            logging.info("status is : " + response_check_module_instance_status.text)
-            time.sleep(SLEEP_IN_SECONDS)
-            elapsedTime = elapsedTime + SLEEP_IN_SECONDS
-            # Update the text of the info box in the session state
-            # st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
-
-        st.write(
-            "✅ Module instance ({}) finished successfully.".format(
-                cel_transform_step_module_instance_iri))
-
-        # TODO SHOULD NOT BE HARDCODED
-        owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
-                                                       META_DATA_GRAPH_NAME,
-                                                       cel_transform_step_module_instance_iri)
-        start_cel_step(experiment_resource, owl_file_iri)
+# def start_cel_transform_step(experiment_resource, repaired_abox_iri, wikidata5m_iri):
+#     # transform nt file to owl
+#     # st.info("starting cel transform step experiment_resource : "+experiment_resource+" repaired_abox_iri : " +repaired_abox_iri+" wikidata5m_iri : "+wikidata5m_iri)
+#     #st.info("starting cel transform step experiment_resource : " + experiment_resource + " repaired_abox_iri : " + repaired_abox_iri + " wikidata5m_iri : " + wikidata5m_iri)
+#     cel_transform_experiment_data = experiment_data  # create_experiment_data()
+#     cel_transform_experiment_resource = cel_transform_experiment_data["experiment_iri"]
+#     cel_transform_experiment_directory = cel_transform_experiment_data["experiment_folder"]
+#     cel_transform_relative_file_location_inside_enexa_dir = cel_transform_experiment_directory
+#
+#     # add reduced kg as owl file w5M-rdf-1.owl
+#     # st.info("use w5M-rdf-1.owl as kg file")
+#     # # add wikidata5m
+#     # responce_add_reduced_owl_file = add_module_configuration_to_enexa_service(
+#     #     cel_transform_experiment_resource,
+#     #     cel_transform_relative_file_location_inside_enexa_dir,
+#     #     "w5M-rdf-1.owl")
+#     # if (responce_add_reduced_owl_file.status_code != 200):
+#     #     st.error("cannot add file: " + DATASET_NAME)
+#     # else:
+#     #     st.info("file add " + responce_add_reduced_owl_file.text + " ")
+#     #
+#     #     owl_file_iri = extract_id_from_turtle(responce_add_reduced_owl_file.text)
+#     #     start_cel_step(experiment_resource, owl_file_iri)
+#
+#     # add wikidata5m
+#     # responce_add_wikidata5m = add_module_configuration_to_enexa_service(
+#     #    cel_transform_experiment_resource,
+#     #    cel_transform_relative_file_location_inside_enexa_dir,
+#     #    DATASET_NAME)
+#     # if (responce_add_wikidata5m.status_code != 200):
+#     #    st.error("cannot add file: " + DATASET_NAME)
+#     # else:
+#     #    st.info("file add " + responce_add_wikidata5m.text + " ")
+#
+#     #    wikidata5m_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
+#     response_transform_step = start_cel_transform_module(experiment_resource, repaired_abox_iri, wikidata5m_iri)
+#     # st.info(str(response_transform_step.status_code))
+#     if (response_transform_step.status_code != 200):
+#         st.error("error in running cel transform module")
+#     else:
+#         # st.info(" start cel transform strp")
+#         cel_transform_step_module_instance_iri = extract_id_from_turtle(response_transform_step.text)
+#         # st.info(" cel_transform_step_module_instance_iri " + cel_transform_step_module_instance_iri)
+#
+#         if cel_transform_step_module_instance_iri:
+#             logging.info("id:"+ cel_transform_step_module_instance_iri)
+#         else:
+#             logging.info("No id found in JSON-LD")
+#             st.error("No iri for the last module found")
+#         # st.info("cel_transform_step_module_instance_iri is :" + cel_transform_step_module_instance_iri)
+#         # st.info("experiment_resource is :" + experiment_resource)
+#
+#         # st.success("get status experiment_resource is : "+experiment_resource)
+#         response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+#                                                                cel_transform_step_module_instance_iri,
+#                                                                experiment_resource)
+#         logging.info("status is : " + response_check_module_instance_status.text)
+#         # st.info("response_check_module_instance_status code" + str(response_check_module_instance_status.status_code))
+#
+#         # Store the text of the info box in the session state
+#         # st.session_state["info_box_text"] = "response_check_module_instance_status" + response_check_module_instance_status.text
+#         # st.info(st.session_state["info_box_text"])
+#
+#         # ask for status of the module instance until it is finished
+#         elapsedTime = SLEEP_IN_SECONDS
+#         while "exited" not in response_check_module_instance_status.text:
+#             response_check_module_instance_status = get_the_status(SERVER_ENDPOINT,
+#                                                                    cel_transform_step_module_instance_iri,
+#                                                                    experiment_resource)
+#             logging.info("status is : " + response_check_module_instance_status.text)
+#             time.sleep(SLEEP_IN_SECONDS)
+#             elapsedTime = elapsedTime + SLEEP_IN_SECONDS
+#             # Update the text of the info box in the session state
+#             # st.session_state["info_box_text"] = "Waiting for result ({} sec) ... ".format(elapsedTime)
+#
+#         st.write(
+#             "✅ Module instance ({}) finished successfully.".format(
+#                 cel_transform_step_module_instance_iri))
+#
+#         # TODO SHOULD NOT BE HARDCODED
+#         owl_file_iri = extract_output_from_triplestore(META_DATA_ENDPOINT,
+#                                                        META_DATA_GRAPH_NAME,
+#                                                        cel_transform_step_module_instance_iri)
+#         start_cel_step(experiment_resource, owl_file_iri)
 
 
 def start_tentris(experiment_resource, repaired_a_box_iri):
@@ -1375,7 +1389,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         # st.info("data set add to service " + responce_add_wikidata5m.text + " ")
 
         wikidata5m_unfiltered_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
-
+        st.info("wikidata5m_unfiltered_iri is "+wikidata5m_unfiltered_iri)
         response_tentris_step = start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri)
         #1 st.info("text is "+str(response_tentris_step.text))
         container_id_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
@@ -1449,9 +1463,14 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         #     start_cel_transform_step(experiment_resource, repaired_a_box_iri, wikidata5m_iri)
         tentris_iri = extract_id_from_turtle(response_tentris_step.text)
+        #st.info(response_tentris_step.text)
+        tentris_module_URL = extract_X_from_turtle(response_tentris_step.text,
+                                                     "http://w3id.org/dice-research/enexa/ontology#externalEndpointURL")
+
+        tentrisIP = extract_ip(tentris_module_URL)
 
         #st.info("tentris is : "+tentris_iri)
-        start_cel_step(experiment_resource, tentris_iri)
+        start_cel_step(experiment_resource, tentris_iri,tentris_module_URL,tentrisIP)
 
 
 # def start_embeddings_step(experiment_resource, iri_nt_file_from_preprocess_embedding):
