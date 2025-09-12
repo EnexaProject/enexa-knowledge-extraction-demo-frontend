@@ -4,6 +4,7 @@ import time
 from urllib.error import HTTPError
 
 
+
 import rdflib
 import streamlit as st
 from rdflib.compat import cast_bytes
@@ -583,7 +584,7 @@ def print_banner_to_console():
         logging.info(data)
 
 
-st.title("ENEXA Integration Demo V2.0.011 - 2.0.44 extraction - tentris module 1 - enexa-ui-demo:2.0.028-test")
+st.title("ENEXA Integration Demo V2.0.011 - 2.0.44 extraction - tentris module 1 - enexa-ui-demo:2.0.040-test CELSPARQL")
 
 ##opening the image
 image = Image.open('images/Enexa-Demo-May-24.png')
@@ -977,8 +978,8 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     # evaluate 'http://0.0.0.0:8000/cel' '{"pos":["http://www.benchmark.org/family#F2F14"], "neg":["http://www.benchmark.org/family#F10F200"], "model":"Drill","pretrained":"pretrained","path_embeddings":"embeddings/Keci_entity_embeddings.csv"}'
     # First example: BASF, Adidas vs. Bosch
     data = {
-        "pos":["http://www.wikidata.org/entity/Q3895","http://www.wikidata.org/entity/Q180855"],
-        "neg":["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
+        "pos":["https://www.wikidata.org/wiki/Q3895","https://www.wikidata.org/wiki/Q180855"],
+        "neg":["https://www.wikidata.org/wiki/Q483915","https://www.wikidata.org/wiki/Q1359568","https://www.wikidata.org/wiki/Q169167","https://www.wikidata.org/wiki/Q192334","https://www.wikidata.org/wiki/Q695087","https://www.wikidata.org/wiki/Q20165", "https://www.wikidata.org/wiki/Q2087161"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -1004,8 +1005,8 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     st.info("Evaluating")
 
     data = {
-        "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
-        "neg": ["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
+        "pos": ["https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q180855"],
+        "neg": ["https://www.wikidata.org/wiki/Q483915","https://www.wikidata.org/wiki/Q1359568","https://www.wikidata.org/wiki/Q169167","https://www.wikidata.org/wiki/Q192334","https://www.wikidata.org/wiki/Q695087","https://www.wikidata.org/wiki/Q20165", "https://www.wikidata.org/wiki/Q2087161"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2
@@ -1021,20 +1022,21 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
             data_response_first_example = json.loads(response.text)
 
             # this is a hot fix until CEL module works in a deterministic way
-            if (data_response_first_example['Results'][0]['Prediction'].startswith("∃ P859⁻")):
-                data_response_first_example['Results'][0]['Prediction'] = "∃ P859⁻.(∃ P366⁻.⊤)"
+            # if (data_response_first_example['Results'][0]['Prediction'].startswith("∃ P859⁻")):
+            #     data_response_first_example['Results'][0]['Prediction'] = "∃ P859⁻.(∃ P366⁻.⊤)"
 
             for item in data_response_first_example['Results']:
-                # this is a hot fix until CEL module works in a deterministic way
-                if (item['Prediction'] == "∃ P859⁻.(≥ 1 P366⁻.⊤)"):
-                    item['Prediction'] = "∃ P859⁻.(∃ P366⁻.⊤)"
+            #    # this is a hot fix until CEL module works in a deterministic way
+            #    if (item['Prediction'] == "∃ P859⁻.(≥ 1 P366⁻.⊤)"):
+            #        item['Prediction'] = "∃ P859⁻.(∃ P366⁻.⊤)"
 
-                item['Prediction with labels'] = process_verbalization(item['Prediction'], wikidata_label_dict)
+              item['Prediction with labels'] = process_verbalization(item['Prediction'], wikidata_label_dict)
+
 
 
 
             df = pd.DataFrame(data_response_first_example['Results'])
-            df = df[['Rank', 'Prediction', 'F1', 'Prediction with labels']]
+            df = df[['Rank', 'Prediction', 'F1', 'Prediction with labels','SPARQLQuery']]
 
             st.table(df.set_index('Rank'))
     else:
@@ -1045,8 +1047,8 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     #st.info("Evaluating second example ")
 
     data = {
-        "pos": ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q20165"],
-        "neg": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"],
+        "pos": ["https://www.wikidata.org/wiki/Q483915", "https://www.wikidata.org/wiki/Q1359568", "https://www.wikidata.org/wiki/Q20165"],
+        "neg": ["https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q180855","https://www.wikidata.org/wiki/Q169167"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -1066,8 +1068,10 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
             for item in data_response_second_example['Results']:
                 item['Prediction with labels'] = process_verbalization(item['Prediction'], wikidata_label_dict)
 
+
+
             df = pd.DataFrame(data_response_second_example['Results'])
-            df = df[['Rank', 'Prediction', 'F1', 'Prediction with labels']]
+            df = df[['Rank', 'Prediction', 'F1', 'Prediction with labels','SPARQLQuery']]
 
             st.table(df.set_index('Rank'))
     else:
@@ -1462,8 +1466,9 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         #     wikidata5m_iri = extract_id_from_turtle(responce_add_filteredwikidata5m.text)
 
         #     start_cel_transform_step(experiment_resource, repaired_a_box_iri, wikidata5m_iri)
+        st.info(response_tentris_step.text)
         tentris_iri = extract_id_from_turtle(response_tentris_step.text)
-        #st.info(response_tentris_step.text)
+        st.info(tentris_iri)
         tentris_module_URL = extract_X_from_turtle(response_tentris_step.text,
                                                      "http://w3id.org/dice-research/enexa/ontology#externalEndpointURL")
 
@@ -1851,6 +1856,115 @@ def print_container_logs(pod_uid, namespace="default", timeout=300, interval=5):
 #         st.error("An error occurred: " + str(e))
 #     return returnlines
 
+def resolve_disambiguation(disambiguations, text):
+    """
+    Looks up a disambiguation item (case-insensitive) and returns the corresponding output.
+    Returns empty string if not found.
+    """
+    text_lower = text.strip().lower()
+    for entry in disambiguations:
+        if entry.get("item", "").strip().lower() == text_lower:
+            return entry.get("output", "")
+    return ""
+
+def resolve_disambiguation_for_predicates( text):
+    disambiguations = [
+  { "item": "company", "output": "Q783794" },
+  { "item": "product", "output": "Q2424752" },
+  { "item": "service", "output": "Q7406919" },
+  { "item": "industry", "output": "Q8148" },
+  { "item": "brand", "output": "Q431289" },
+  { "item": "country", "output": "Q6256" },
+  { "item": "location", "output": "Q2221906" },
+  { "item": "organization", "output": "Q43229" },
+  { "item": "person", "output": "Q5" },
+  { "item": "founder", "output": "Q4479442" },
+  { "item": "position", "output": "Q828803" },
+  { "item": "event", "output": "Q1656682" },
+  { "item": "action", "output": "Q4026292" },
+  { "item": "founding", "output": "Q3075355" },
+  { "item": "accusition", "output": "Q1363768" },
+  { "item": "merger", "output": "Q1363768" },
+  { "item": "partnership", "output": "Q728646" },
+  { "item": "expansion", "output": "Q19841649" },
+  { "item": "restructuring", "output": "Q1376796" },
+  { "item": "divestment", "output": "Q1200733" },
+  { "item": "sale", "output": "Q291046" },
+  { "item": "bankruptcy", "output": "Q152074" },
+  { "item": "financial_metric", "output": "Q106905561" },
+  { "item": "business_concept", "output": "Q1425089" },
+  { "item": "revenue", "output": "Q850210" },
+  { "item": "profit", "output": "Q2112073" },
+  { "item": "loss", "output": "" },
+  { "item": "investment", "output": "Q4290" },
+  { "item": "funding", "output": "Q6055890" },
+  { "item": "market_share", "output": "Q828814" },
+  { "item": "competition", "output": "Q319676" },
+  { "item": "market_trend", "output": "Q1004322" },
+  { "item": "regulation", "output": "Q428148" },
+  { "item": "innovation", "output": "Q174165" },
+  { "item": "sustainability", "output": "Q219416" },
+  { "item": "corporate_social_responsibility", "output": "Q218600" },
+  { "item": "award", "output": "Q618779" },
+  { "item": "date/time", "output": "Q205892" },
+  { "item": "year", "output": "Q577" },
+  { "item": "period", "output": "Q392928" }
+]
+
+    text_lower = text.strip().lower()
+    for entry in disambiguations:
+        if entry.get("item", "").strip().lower() == text_lower:
+            return entry.get("output", "")
+    return ""
+
+def getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri):
+    st.info("start triple extraction from LLM answer ")
+    llm_answer_file_path = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        extracted_jsonlLLManswer_FromExtraction_iri)
+
+    llm_answer_file_path = llm_answer_file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
+
+    with open(llm_answer_file_path, 'r') as in_file:
+        llmAnswerJsonL = in_file.readlines()
+
+    flattened_triples = []
+    for line in llmAnswerJsonL:
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # Skip invalid JSON lines
+
+        # Filter: task must be RE, input text must exist, triples must be non-empty
+        if (
+                data.get("task") != "RE"
+                or not data.get("input text")
+                or not data.get("triples")
+        ):
+            continue
+
+        # Extract top-level fields
+        url = data.get("url", "")
+        input_text = data.get("input text", "")
+
+        for triple in data["triples"]:
+            flat = {
+                "subject": triple.get("subject", ""),
+                "wikidata_subject": resolve_disambiguation(data["disambiguations"],triple.get("subject", "")),
+                "predicate": triple.get("predicate", ""),
+                "wikidata_predicate": resolve_disambiguation_for_predicates(triple.get("predicate", "")),
+                "object": triple.get("object", ""),
+                "wikidata_object": resolve_disambiguation(data["disambiguations"],triple.get("object", "")),
+                "subject candidates": triple.get("subject candidates", ""),
+                "predicate candidates": triple.get("predicate candidates", ""),
+                "object candidates": triple.get("object candidates", ""),
+                "url": url,
+                "input text": input_text,
+            }
+            flattened_triples.append(flat)
+    return flattened_triples
+
 
 def read_container_logs_stop_when_reach_x(pod_uid, namespace="default", x="", timeout=300, interval=5):
     returnlines = []
@@ -1938,7 +2052,7 @@ if uploaded_files is not None and uploaded_files != []:
         st.subheader("1️ Running extraction module")
 
         skip_extraction = True  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
-        extraction_previous_run = "http://example.org/resource/a5a580c9-480d-4c5e-af74-1c833b38b1ca"
+        extraction_previous_run = "http://example.org/resource/366237c3-5718-461a-aa77-9d6b933c6481"
         # create experiment instance
         experiment_data = create_experiment_data()
 
@@ -2081,7 +2195,17 @@ if uploaded_files is not None and uploaded_files != []:
                         META_DATA_GRAPH_NAME,
                         module_instance_iri)
 
-                    #1 st.info("debug extracted_file_iri is " + str(extracted_file_iri))
+                    extracted_jsonlLLManswer_FromExtraction_iri = extract_X_from_triplestore(
+                        "http://w3id.org/dice-research/enexa/module/extraction/result/finalpipelineoutput", META_DATA_ENDPOINT,
+                        META_DATA_GRAPH_NAME,
+                        module_instance_iri)
+
+                    st.info("debug extracted_jsonlLLManswer_FromExtraction_iri is " + str(extracted_jsonlLLManswer_FromExtraction_iri))
+
+                    flattened_triples_from_llm = getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri)
+                    for item in flattened_triples_from_llm:
+                        print(json.dumps(item, indent=2))
+
 
                     file_path = extract_X_from_triplestore(
                         "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,

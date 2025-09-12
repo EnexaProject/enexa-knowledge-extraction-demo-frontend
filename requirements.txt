@@ -7,3 +7,4 @@ sparqlwrapper==2.0.0
 docker==6.1.3
 SPARQLWrapper==2.0.0
 kubernetes==31.0.0
+
