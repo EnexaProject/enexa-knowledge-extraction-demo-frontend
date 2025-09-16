@@ -331,7 +331,7 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
         st.error("Error while registering exmplanation json file. :cry:")
         st.error(response_adding_explanation_file.status_code + " " + str(response_adding_explanation_file))
     else:
-        # st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
+        st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
         urls_to_explanation_json_iri = extract_id_from_turtle(response_adding_explanation_file.text)
 
         # start module
@@ -372,6 +372,7 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
 
             start_container_endpoint = SERVER_ENDPOINT + "/start-container"
             response_start_module_explain = requests.post(start_container_endpoint, data=start_module_message_as_jsonld, headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
+            #st.info(response_start_module_explain.text)
             container_name_explain = extract_X_from_turtle(response_start_module_explain.text,
                                                            "http://w3id.org/dice-research/enexa/ontology#containerName")
 
@@ -381,8 +382,8 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
             external = extract_X_from_turtle(response_start_module_explain.text,
                                          "http://w3id.org/dice-research/enexa/ontology#externalEndpointURL")
 
-            st.info("external"+external)
-            st.info("internal" + internal)
+            #st.info("external"+external)
+            #st.info("internal" + internal)
 
             port = external.split(':')[1]
             #1 st.info("port is " + port)
@@ -905,11 +906,99 @@ def extract_ip(container_module_URL):
     return ip
 
 
+def start_cel_explainer_module(experiment_resource,tentrisSparqlEndpoint, queryFromCEL,positiveExamples,negativeExamples):
+    cel_explainer_experiment_data = experiment_data  # create_experiment_data()
+    cel_explainer_experiment_resource = cel_explainer_experiment_data["experiment_iri"]
+    cel_explainer_experiment_directory = cel_explainer_experiment_data["experiment_folder"]
 
+    #write query to file
+    chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    random_filename_for_Query = ''.join(random.choice(chars) for i in range(16))
+    query_file_name = random_filename_for_Query + "_query.txt"
+    write_file_to_folder("enexa-dir://explanationfiles", query_file_name, queryFromCEL)
+
+    random_filename_for_Positive = ''.join(random.choice(chars) for i in range(16))
+    positive_file_name = random_filename_for_Positive + "_positive.txt"
+    write_file_to_folder("enexa-dir://explanationfiles", positive_file_name, str(positiveExamples))
+
+    random_filename_for_Negative = ''.join(random.choice(chars) for i in range(16))
+    negative_file_name = random_filename_for_Negative + "_negative.txt"
+    write_file_to_folder("enexa-dir://explanationfiles", negative_file_name, str(negativeExamples))
+
+    explanation_step_experiment_data = experiment_data  # create_experiment_data()
+    explanation_experiment_directory = explanation_step_experiment_data["experiment_folder"]
+
+    # add files #########################################################
+    response_adding_explainer_query_file = add_resource_to_service(experiment_resource,
+                                                               "enexa-dir://explanationfiles",
+                                                               query_file_name,
+                                                               label_for_addition="Adding explainer query_file_name")
+    if response_adding_explainer_query_file.status_code != 200:
+        st.error("Error while registering query_file_name file. :cry:")
+        st.error(response_adding_explainer_query_file.status_code + " " + str(response_adding_explainer_query_file))
+    else:
+        st.success("File : \"" + query_file_name + "\" add to Enexa service successfully :ok_hand:")
+        urls_to_explainer_query_iri = extract_id_from_turtle(response_adding_explainer_query_file.text)
+        ## add second file
+        response_adding_explainer_positive_file = add_resource_to_service(experiment_resource,
+                                                                       "enexa-dir://explanationfiles",
+                                                                       positive_file_name,
+                                                                       label_for_addition="Adding explainer positive")
+        if response_adding_explainer_positive_file.status_code != 200:
+            st.error("Error while registering positive file. :cry:")
+            st.error(response_adding_explainer_positive_file.status_code + " " + str(response_adding_explainer_positive_file))
+        else:
+            st.success("File : \"" + positive_file_name + "\" add to Enexa service successfully :ok_hand:")
+            urls_to_explainer_positive_iri = extract_id_from_turtle(response_adding_explainer_positive_file.text)
+
+            ### add third file
+            response_adding_explainer_negative_file = add_resource_to_service(experiment_resource,
+                                                                              "enexa-dir://explanationfiles",
+                                                                              negative_file_name,
+                                                                              label_for_addition="Adding explainer positive")
+            if response_adding_explainer_negative_file.status_code != 200:
+                st.error("Error while registering negative file. :cry:")
+                st.error(response_adding_explainer_negative_file.status_code + " " + str(
+                    response_adding_explainer_negative_file))
+            else:
+                st.success("File : \"" + negative_file_name + "\" add to Enexa service successfully :ok_hand:")
+                urls_to_explainer_negative_iri = extract_id_from_turtle(response_adding_explainer_negative_file.text)
+
+                start_module_message = """
+                            @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+                            @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+                            @prefix prov:   <http://www.w3.org/ns/prov#> .
+                            @prefix hobbit: <http://w3id.org/hobbit/vocab#> . 
+                            @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+                            [] rdf:type enexa:ModuleInstance ;
+                            enexa:experiment <{}> ;
+                            alg:instanceOf <http://w3id.org/dice-research/enexa/module/cel-explainer/0.0.1> ;
+                            <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/endpoint> "{}";
+                            <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/querypath> <{}>;
+                            <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/positivexamplepath> <{}>;
+                            <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/negativexamplepath> <{}>.
+                            """.format(experiment_resource, tentrisSparqlEndpoint, urls_to_explainer_query_iri, urls_to_explainer_positive_iri, urls_to_explainer_negative_iri)
+
+                start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
+
+                # with st.expander("▶️ Querying the ENEXA service to start the Explanation module"):
+                #     st.code(start_module_message, language="turtle")
+                #     st.code(start_module_message_as_jsonld, language="json")
+
+                start_container_endpoint = SERVER_ENDPOINT + "/start-container"
+                response_start_module_explain = requests.post(start_container_endpoint,
+                                                              data=start_module_message_as_jsonld,
+                                                              headers={"Content-Type": "application/ld+json",
+                                                                       "Accept": "text/turtle"})
+                #st.info(response_start_module_explain.text)
+                container_id_cel_explainer_step_deployed = extract_X_from_turtle(response_start_module_explain.text,
+                                                                       "http://w3id.org/dice-research/enexa/ontology#containerId")
+                read_container_logs_stop_when_reach_x(container_id_cel_explainer_step_deployed, "default",
+                                                      "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)")
 
 
 def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
-    st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tentrisUrl :" + tentrisUrl + "embedding_csv_iri :" + embedding_csv_iri)
+    #st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tentrisUrl :" + tentrisUrl + "embedding_csv_iri :" + embedding_csv_iri)
 
     cel_service_experiment_data = experiment_data  # create_experiment_data()
     cel_service_experiment_resource = cel_service_experiment_data["experiment_iri"]
@@ -1079,6 +1168,10 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
         st.error(f"Error: {response.text}")
         st.error(response)
 
+    st.info("start CEL explainer module")
+    queryFromCEL = data_response_first_example['Results'][0]['SPARQLQuery']
+    start_cel_explainer_module(experiment_resource,tentrisUrl, queryFromCEL,["https://www.wikidata.org/wiki/Q483915", "https://www.wikidata.org/wiki/Q1359568", "https://www.wikidata.org/wiki/Q20165"],["https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q180855","https://www.wikidata.org/wiki/Q169167"])
+
 
     # # Sending the GET request with headers and JSON data
     # response = requests.get(url, headers=headers, json=json.dumps(data))
@@ -1115,6 +1208,9 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
         "extraction_model": "https://huggingface.co/ibm/knowgl-large",
         "learned_by": "Neural Class Expression Learner"
     }
+
+
+
     #st.info("start explanation"+ json.dumps(explanation_json_file))
     start_explanation_module(experiment_resource, explanation_json_file , "first example")
 
@@ -1137,7 +1233,7 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
         "extraction_model": "https://huggingface.co/ibm/knowgl-large",
         "learned_by": "Neural Class Expression Learner"
     }
-    # st.info("start explanation"+ json.dumps(explanation_json_file))
+    #st.info("start explanation"+ json.dumps(explanation_json_file))
     start_explanation_module(experiment_resource, explanation_json_file, "second example")
 
 
@@ -1227,10 +1323,10 @@ def start_cel_step(experiment_resource, tripleStoreIRI,tentris_module_URL,tentri
 
     st.subheader("5️ Running class expression learning")
     tentrisUrl = "http://" + tentrisIP + ":9080/sparql"
-    st.info("tentrisUrl: "+tentrisUrl)
-    st.info("tripleStoreIRI: "+tripleStoreIRI)
-    st.info("tentris_module_URL: "+tentris_module_URL)
-    st.info("tentrisIP: "+tentrisIP)
+    #st.info("tentrisUrl: "+tentrisUrl)
+    #st.info("tripleStoreIRI: "+tripleStoreIRI)
+    #st.info("tentris_module_URL: "+tentris_module_URL)
+    #st.info("tentrisIP: "+tentrisIP)
     #st.info("Starting class expression learning ... experiment_resource : " + str(        experiment_resource) + " tripleStoreIRI: " + str(tripleStoreIRI))
     cel_experiment_data = experiment_data  # create_experiment_data()
 
@@ -1252,7 +1348,7 @@ def start_cel_step(experiment_resource, tripleStoreIRI,tentris_module_URL,tentri
         # st.info("Keci_entity_embeddings file add to servcie" + add_preproccessed_embedding_csv.text + " ")
 
         embedding_csv_iri = extract_id_from_turtle(add_preproccessed_embedding_csv.text)
-        st.info("embedding_csv_iri is "+embedding_csv_iri )
+        #st.info("embedding_csv_iri is "+embedding_csv_iri )
         #start_cel_service_step(experiment_resource, tripleStoreIRI, embedding_csv_iri)
         start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri)
 
@@ -1393,7 +1489,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         # st.info("data set add to service " + responce_add_wikidata5m.text + " ")
 
         wikidata5m_unfiltered_iri = extract_id_from_turtle(responce_add_wikidata5m.text)
-        st.info("wikidata5m_unfiltered_iri is "+wikidata5m_unfiltered_iri)
+        #st.info("wikidata5m_unfiltered_iri is "+wikidata5m_unfiltered_iri)
         response_tentris_step = start_tentris_module(experiment_resource, wikidata5m_unfiltered_iri)
         #1 st.info("text is "+str(response_tentris_step.text))
         container_id_tentris_step_deployed = extract_X_from_turtle(response_tentris_step.text,
@@ -1466,9 +1562,9 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         #     wikidata5m_iri = extract_id_from_turtle(responce_add_filteredwikidata5m.text)
 
         #     start_cel_transform_step(experiment_resource, repaired_a_box_iri, wikidata5m_iri)
-        st.info(response_tentris_step.text)
+        #st.info(response_tentris_step.text)
         tentris_iri = extract_id_from_turtle(response_tentris_step.text)
-        st.info(tentris_iri)
+        #st.info(tentris_iri)
         tentris_module_URL = extract_X_from_turtle(response_tentris_step.text,
                                                      "http://w3id.org/dice-research/enexa/ontology#externalEndpointURL")
 
@@ -2051,8 +2147,8 @@ if uploaded_files is not None and uploaded_files != []:
         # st.subheader(" Preparing...")
         st.subheader("1️ Running extraction module")
 
-        skip_extraction = True  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
-        extraction_previous_run = "http://example.org/resource/366237c3-5718-461a-aa77-9d6b933c6481"
+        skip_extraction = False  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
+        extraction_previous_run = "http://example.org/resource/d027408b-260b-41c9-b365-2183294edda4"
         # create experiment instance
         experiment_data = create_experiment_data()
 
@@ -2065,7 +2161,7 @@ if uploaded_files is not None and uploaded_files != []:
 
         # add resource config file
         # experiment_resource, relative_file_location_inside_enexa_dir,uploaded_filename
-        st.info("debug: start copy the generation parameters json experiment_resource is"+str(experiment_resource)+" relative_file_location_inside_enexa_dir is "+str(relative_file_location_inside_enexa_dir))
+        #st.info("debug: start copy the generation parameters json experiment_resource is"+str(experiment_resource)+" relative_file_location_inside_enexa_dir is "+str(relative_file_location_inside_enexa_dir))
         responce_configFile_resource = add_module_configuration_to_enexa_service(experiment_resource,
                                                                                  relative_file_location_inside_enexa_dir,
                                                                                  "generation_parameters.json",
@@ -2200,7 +2296,7 @@ if uploaded_files is not None and uploaded_files != []:
                         META_DATA_GRAPH_NAME,
                         module_instance_iri)
 
-                    st.info("debug extracted_jsonlLLManswer_FromExtraction_iri is " + str(extracted_jsonlLLManswer_FromExtraction_iri))
+                    #st.info("debug extracted_jsonlLLManswer_FromExtraction_iri is " + str(extracted_jsonlLLManswer_FromExtraction_iri))
 
                     flattened_triples_from_llm = getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri)
                     for item in flattened_triples_from_llm:
