@@ -3,7 +3,7 @@ import random
 import time
 from urllib.error import HTTPError
 
-
+import threading
 
 import rdflib
 import streamlit as st
@@ -39,7 +39,7 @@ logging.getLogger().setLevel(logging.INFO)
 appName = "app3"
 sleep_Before_show_explanation_link_in_seconds=35
 
-
+flattened_triples_from_llm = []
 
 # config
 SERVER_ENDPOINT= configD("SERVER_ENDPOINT", default="http://localhost:8080")
@@ -339,7 +339,7 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
 
         response_add_openapi_key = add_resource_to_service(experiment_resource,
                                                                    "enexa-dir://explanationfiles",
-                                                                   "openapi.key",
+                                                                   "hf.key",
                                                                    label_for_addition="Adding file explanation json")
 
         if (response_add_openapi_key.status_code != 200):
@@ -357,9 +357,9 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
             @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
             [] rdf:type enexa:ModuleInstance ;
             enexa:experiment <{}> ;
-            alg:instanceOf <http://w3id.org/dice-research/enexa/module/explanation/0.1.0> ;
+            alg:instanceOf <http://w3id.org/dice-research/enexa/module/explanation-chat-v2/0.0.1> ;
             <http://w3id.org/dice-research/enexa/module/explanation/parameter/path_json> <{}>;
-            <http://w3id.org/dice-research/enexa/module/explanation/parameter/path_to_key_file> <{}> .
+            <http://w3id.org/dice-research/enexa/module/explanation/parameter/path_to_HUGGINGFACEHUB_API_TOKEN> <{}> .
             """.format(experiment_resource, urls_to_explanation_json_iri, urls_to_openai_key_iri)
 
             start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
@@ -585,7 +585,7 @@ def print_banner_to_console():
         logging.info(data)
 
 
-st.title("ENEXA Integration Demo V2.0.011 - 2.0.44 extraction - tentris module 1 - enexa-ui-demo:2.0.040-test CELSPARQL")
+st.title("ENEXA Integration Demo ")
 
 ##opening the image
 image = Image.open('images/Enexa-Demo-May-24.png')
@@ -648,17 +648,17 @@ def extract_id_from_turtle(turtle_text):
 
 def extract_X_from_triplestore(X, triple_store_endpoint, graph_name, module_instance_iri):
      #1 st.info("debug: running this query X is "+str(X)+" triple_store_endpoint is : "+str(triple_store_endpoint)+" graph_name is : "+str(graph_name)+" module_instance_iri is : "+str(module_instance_iri))
-     logging.info("extract_X_from_triplestore"+str(module_instance_iri))
+     #logging.info("extract_X_from_triplestore"+str(module_instance_iri))
      g = Graph()
      sparql = SPARQLWrapper(triple_store_endpoint)
      query_str = " SELECT ?iri \n WHERE {\n GRAPH <" + str(graph_name) + "> {\n <" + str(module_instance_iri) + "> <" + X + "> ?iri. } }"
      #1 st.info("debug: query is :"+query_str)
-     logging.info(query_str)
+     #logging.info(query_str)
      sparql.setQuery(query_str)
      sparql.setMethod('GET')
      sparql.setReturnFormat('json')
      results = sparql.query().convert()
-     st.json(results)
+     #st.json(results)
      returnIRI = ""
      for result in results["results"]["bindings"]:
          returnIRI = result["iri"]["value"]
@@ -911,91 +911,122 @@ def start_cel_explainer_module(experiment_resource,tentrisSparqlEndpoint, queryF
     cel_explainer_experiment_resource = cel_explainer_experiment_data["experiment_iri"]
     cel_explainer_experiment_directory = cel_explainer_experiment_data["experiment_folder"]
 
-    #write query to file
+    # write query to file
     chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     random_filename_for_Query = ''.join(random.choice(chars) for i in range(16))
     query_file_name = random_filename_for_Query + "_query.txt"
     write_file_to_folder("enexa-dir://explanationfiles", query_file_name, queryFromCEL)
-
-    random_filename_for_Positive = ''.join(random.choice(chars) for i in range(16))
-    positive_file_name = random_filename_for_Positive + "_positive.txt"
-    write_file_to_folder("enexa-dir://explanationfiles", positive_file_name, str(positiveExamples))
-
-    random_filename_for_Negative = ''.join(random.choice(chars) for i in range(16))
-    negative_file_name = random_filename_for_Negative + "_negative.txt"
-    write_file_to_folder("enexa-dir://explanationfiles", negative_file_name, str(negativeExamples))
 
     explanation_step_experiment_data = experiment_data  # create_experiment_data()
     explanation_experiment_directory = explanation_step_experiment_data["experiment_folder"]
 
     # add files #########################################################
     response_adding_explainer_query_file = add_resource_to_service(experiment_resource,
-                                                               "enexa-dir://explanationfiles",
-                                                               query_file_name,
-                                                               label_for_addition="Adding explainer query_file_name")
+                                                                   "enexa-dir://explanationfiles",
+                                                                   query_file_name,
+                                                                   label_for_addition="Adding explainer query_file_name")
     if response_adding_explainer_query_file.status_code != 200:
         st.error("Error while registering query_file_name file. :cry:")
         st.error(response_adding_explainer_query_file.status_code + " " + str(response_adding_explainer_query_file))
     else:
         st.success("File : \"" + query_file_name + "\" add to Enexa service successfully :ok_hand:")
         urls_to_explainer_query_iri = extract_id_from_turtle(response_adding_explainer_query_file.text)
-        ## add second file
-        response_adding_explainer_positive_file = add_resource_to_service(experiment_resource,
-                                                                       "enexa-dir://explanationfiles",
-                                                                       positive_file_name,
-                                                                       label_for_addition="Adding explainer positive")
-        if response_adding_explainer_positive_file.status_code != 200:
-            st.error("Error while registering positive file. :cry:")
-            st.error(response_adding_explainer_positive_file.status_code + " " + str(response_adding_explainer_positive_file))
-        else:
-            st.success("File : \"" + positive_file_name + "\" add to Enexa service successfully :ok_hand:")
-            urls_to_explainer_positive_iri = extract_id_from_turtle(response_adding_explainer_positive_file.text)
+        start_module_message = """
+                                        @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
+                                        @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
+                                        @prefix prov:   <http://www.w3.org/ns/prov#> .
+                                        @prefix hobbit: <http://w3id.org/hobbit/vocab#> . 
+                                        @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+                                        [] rdf:type enexa:ModuleInstance ;
+                                        enexa:experiment <{}> ;
+                                        alg:instanceOf <http://w3id.org/dice-research/enexa/module/cel-explainer/0.1.1> ;
+                                        <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/endpoint> "{}";
+                                        <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/querypath> <{}>;
+                                        <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/positivexamples> "{}";
+                                        <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/negativexamples> "{}".
+                                        """.format(experiment_resource, tentrisSparqlEndpoint, urls_to_explainer_query_iri,
+                                                   " ".join(positiveExamples), " ".join(negativeExamples))
 
-            ### add third file
-            response_adding_explainer_negative_file = add_resource_to_service(experiment_resource,
-                                                                              "enexa-dir://explanationfiles",
-                                                                              negative_file_name,
-                                                                              label_for_addition="Adding explainer positive")
-            if response_adding_explainer_negative_file.status_code != 200:
-                st.error("Error while registering negative file. :cry:")
-                st.error(response_adding_explainer_negative_file.status_code + " " + str(
-                    response_adding_explainer_negative_file))
-            else:
-                st.success("File : \"" + negative_file_name + "\" add to Enexa service successfully :ok_hand:")
-                urls_to_explainer_negative_iri = extract_id_from_turtle(response_adding_explainer_negative_file.text)
+        start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
 
-                start_module_message = """
-                            @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
-                            @prefix enexa:  <http://w3id.org/dice-research/enexa/ontology#> .
-                            @prefix prov:   <http://www.w3.org/ns/prov#> .
-                            @prefix hobbit: <http://w3id.org/hobbit/vocab#> . 
-                            @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-                            [] rdf:type enexa:ModuleInstance ;
-                            enexa:experiment <{}> ;
-                            alg:instanceOf <http://w3id.org/dice-research/enexa/module/cel-explainer/0.0.1> ;
-                            <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/endpoint> "{}";
-                            <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/querypath> <{}>;
-                            <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/positivexamplepath> <{}>;
-                            <http://w3id.org/dice-research/enexa/module/cel-explainer/parameter/negativexamplepath> <{}>.
-                            """.format(experiment_resource, tentrisSparqlEndpoint, urls_to_explainer_query_iri, urls_to_explainer_positive_iri, urls_to_explainer_negative_iri)
+        # with st.expander("▶️ Querying the ENEXA service to start the Explanation module"):
+        #     st.code(start_module_message, language="turtle")
+        #     st.code(start_module_message_as_jsonld, language="json")
 
-                start_module_message_as_jsonld = turtle_to_jsonld(start_module_message)
+        start_container_endpoint = SERVER_ENDPOINT + "/start-container"
+        response_start_module_explain = requests.post(start_container_endpoint,
+                                                      data=start_module_message_as_jsonld,
+                                                      headers={"Content-Type": "application/ld+json",
+                                                               "Accept": "text/turtle"})
+        st.info(response_start_module_explain.text)
+        container_id_cel_explainer_step_deployed = extract_X_from_turtle(response_start_module_explain.text,
+                                                                         "http://w3id.org/dice-research/enexa/ontology#containerId")
 
-                # with st.expander("▶️ Querying the ENEXA service to start the Explanation module"):
-                #     st.code(start_module_message, language="turtle")
-                #     st.code(start_module_message_as_jsonld, language="json")
+        # it will run until end
+        read_container_logs_stop_when_reach_x(container_id_cel_explainer_step_deployed, "default",
+                                              "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)")
 
-                start_container_endpoint = SERVER_ENDPOINT + "/start-container"
-                response_start_module_explain = requests.post(start_container_endpoint,
-                                                              data=start_module_message_as_jsonld,
-                                                              headers={"Content-Type": "application/ld+json",
-                                                                       "Accept": "text/turtle"})
-                #st.info(response_start_module_explain.text)
-                container_id_cel_explainer_step_deployed = extract_X_from_turtle(response_start_module_explain.text,
-                                                                       "http://w3id.org/dice-research/enexa/ontology#containerId")
-                read_container_logs_stop_when_reach_x(container_id_cel_explainer_step_deployed, "default",
-                                                      "Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)")
+        return response_start_module_explain
 
+def matchTheTriplesFromExtraction(positive_file_path):
+    llm_resolved_triple_set: set[Tuple[str, str, str]] = set()
+
+    for flat_triple in flattened_triples_from_llm:
+        try:
+            resolved_s = flat_triple["wikidata_subject"]
+            resolved_p = flat_triple["wikidata_predicate"]
+            resolved_o = flat_triple["wikidata_object"]
+
+            # Ensure all parts are strings before adding to the set
+            if resolved_s and resolved_p and resolved_o:
+                llm_resolved_triple_set.add((resolved_s, resolved_p, resolved_o))
+        except KeyError as e:
+            print(f"Warning: Skipping LLM triple due to missing key {e}")
+
+    st.info(f"Loaded {len(llm_resolved_triple_set)} unique resolved triples from LLM data for matching.")
+
+    for s, p, o in llm_resolved_triple_set:
+        st.info(f"  (S: {s}, P: {p}, O: {o})")
+
+    match_count = 0
+    line_number = 0
+
+    # 2. Read the file and match each triple
+    try:
+        with open(positive_file_path, 'r') as file:
+            for line in file:
+                line_number += 1
+                line = line.strip()
+                if not line:
+                    continue
+
+                parts = line.split(',')
+
+                if len(parts) == 3:
+                    # The parts extracted from the file are the target Wikidata URIs
+                    file_subject, file_predicate, file_object = parts
+                    #st.info(f"{file_subject}, {file_predicate},{file_object}")
+                    file_triple = (file_subject.strip(), file_predicate.strip(), file_object.strip())
+
+                    # 3. Check for a match in the pre-processed set
+                    if file_triple in llm_resolved_triple_set:
+                        st.success(f"\n✅ MATCH FOUND (Line {line_number}):")
+                        st.success(f"  File Triple: {file_triple}")
+                        st.success(f"  Matches LLM Resolved Triple.")
+                        match_count += 1
+                    else:
+                         # Uncomment this block to see non-matching triples
+                        print(f"\n❌ NO MATCH (Line {line_number}): {file_triple}")
+
+                else:
+                    print(f"Skipping line {line_number}: Expected 3 comma-separated parts, found {len(parts)}.")
+
+        st.info(f"\n--- Matching Complete. Total Matches Found: {match_count} ---")
+
+    except FileNotFoundError:
+        st.error(f"\nError: File not found at path: {positive_file_path}")
+    except Exception as e:
+        st.error(f"\nAn unexpected error occurred: {e}")
 
 def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     #st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tentrisUrl :" + tentrisUrl + "embedding_csv_iri :" + embedding_csv_iri)
@@ -1067,8 +1098,8 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     # evaluate 'http://0.0.0.0:8000/cel' '{"pos":["http://www.benchmark.org/family#F2F14"], "neg":["http://www.benchmark.org/family#F10F200"], "model":"Drill","pretrained":"pretrained","path_embeddings":"embeddings/Keci_entity_embeddings.csv"}'
     # First example: BASF, Adidas vs. Bosch
     data = {
-        "pos":["https://www.wikidata.org/wiki/Q3895","https://www.wikidata.org/wiki/Q180855"],
-        "neg":["https://www.wikidata.org/wiki/Q483915","https://www.wikidata.org/wiki/Q1359568","https://www.wikidata.org/wiki/Q169167","https://www.wikidata.org/wiki/Q192334","https://www.wikidata.org/wiki/Q695087","https://www.wikidata.org/wiki/Q20165", "https://www.wikidata.org/wiki/Q2087161"],
+        "pos":["http://www.wikidata.org/entity/Q3895","http://www.wikidata.org/entity/Q180855"],
+        "neg":["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -1094,8 +1125,8 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     st.info("Evaluating")
 
     data = {
-        "pos": ["https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q180855"],
-        "neg": ["https://www.wikidata.org/wiki/Q483915","https://www.wikidata.org/wiki/Q1359568","https://www.wikidata.org/wiki/Q169167","https://www.wikidata.org/wiki/Q192334","https://www.wikidata.org/wiki/Q695087","https://www.wikidata.org/wiki/Q20165", "https://www.wikidata.org/wiki/Q2087161"],
+        "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
+        "neg": ["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2
@@ -1135,9 +1166,34 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
 
     #st.info("Evaluating second example ")
 
+    queryFromCELfirstExample = data_response_first_example['Results'][0]['SPARQLQuery']
+    start_cel_explainer_module(experiment_resource, tentrisUrl,
+                               queryFromCELfirstExample,
+                               ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
+                               ["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"])
+
+    queryFromCELfirstExample = data_response_first_example['Results'][1]['SPARQLQuery']
+    start_cel_explainer_module(experiment_resource, tentrisUrl,
+                               queryFromCELfirstExample,
+                               ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
+                               ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568",
+                                "http://www.wikidata.org/entity/Q169167", "http://www.wikidata.org/entity/Q192334",
+                                "http://www.wikidata.org/entity/Q695087", "http://www.wikidata.org/entity/Q20165",
+                                "http://www.wikidata.org/entity/Q2087161"])
+
+    queryFromCELfirstExample = data_response_first_example['Results'][2]['SPARQLQuery']
+    start_cel_explainer_module(experiment_resource, tentrisUrl,
+                               queryFromCELfirstExample,
+                               ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
+                               ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568",
+                                "http://www.wikidata.org/entity/Q169167", "http://www.wikidata.org/entity/Q192334",
+                                "http://www.wikidata.org/entity/Q695087", "http://www.wikidata.org/entity/Q20165",
+                                "http://www.wikidata.org/entity/Q2087161"])
+
+
     data = {
-        "pos": ["https://www.wikidata.org/wiki/Q483915", "https://www.wikidata.org/wiki/Q1359568", "https://www.wikidata.org/wiki/Q20165"],
-        "neg": ["https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q180855","https://www.wikidata.org/wiki/Q169167"],
+        "pos": ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q20165"],
+        "neg": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"],
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -1157,8 +1213,6 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
             for item in data_response_second_example['Results']:
                 item['Prediction with labels'] = process_verbalization(item['Prediction'], wikidata_label_dict)
 
-
-
             df = pd.DataFrame(data_response_second_example['Results'])
             df = df[['Rank', 'Prediction', 'F1', 'Prediction with labels','SPARQLQuery']]
 
@@ -1169,9 +1223,62 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
         st.error(response)
 
     st.info("start CEL explainer module")
-    queryFromCEL = data_response_first_example['Results'][0]['SPARQLQuery']
-    start_cel_explainer_module(experiment_resource,tentrisUrl, queryFromCEL,["https://www.wikidata.org/wiki/Q483915", "https://www.wikidata.org/wiki/Q1359568", "https://www.wikidata.org/wiki/Q20165"],["https://www.wikidata.org/wiki/Q3895", "https://www.wikidata.org/wiki/Q180855","https://www.wikidata.org/wiki/Q169167"])
 
+    queryFromCELSecondExample = data_response_second_example['Results'][1]['SPARQLQuery']
+    start_cel_explainer_module(experiment_resource, tentrisUrl,
+                                                                     queryFromCELSecondExample,
+                                                                     ["http://www.wikidata.org/entity/Q483915",
+                                                                      "http://www.wikidata.org/entity/Q1359568",
+                                                                      "http://www.wikidata.org/entity/Q20165"],
+                                                                     ["http://www.wikidata.org/entity/Q3895",
+                                                                      "http://www.wikidata.org/entity/Q180855",
+                                                                      "http://www.wikidata.org/entity/Q169167"])
+
+    queryFromCELSecondExample = data_response_second_example['Results'][2]['SPARQLQuery']
+    start_cel_explainer_module(experiment_resource, tentrisUrl,
+                               queryFromCELSecondExample,
+                               ["http://www.wikidata.org/entity/Q483915",
+                                "http://www.wikidata.org/entity/Q1359568",
+                                "http://www.wikidata.org/entity/Q20165"],
+                               ["http://www.wikidata.org/entity/Q3895",
+                                "http://www.wikidata.org/entity/Q180855",
+                                "http://www.wikidata.org/entity/Q169167"])
+
+
+    queryFromCELSecondExample = data_response_second_example['Results'][0]['SPARQLQuery']
+    response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource,tentrisUrl, queryFromCELSecondExample,["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q20165"],["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"])
+    cel_explainer_module_instance_iri = extract_id_from_turtle(response_start_module_cel_explainer.text)
+
+    positive_file_iri = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/module/cel-explainer/result/positivefile", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        cel_explainer_module_instance_iri)
+
+    positive_file_path = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        positive_file_iri)
+
+    negative_file_iri = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/module/cel-explainer/result/negativefile", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        cel_explainer_module_instance_iri)
+
+    negative_file_path = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        negative_file_iri)
+
+    st.info(positive_file_path)
+    st.info(negative_file_path)
+
+    positive_file_path = positive_file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
+    negative_file_path = negative_file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
+
+    st.info(positive_file_path)
+    st.info(negative_file_path)
+
+    matchTheTriplesFromExtraction(positive_file_path)
 
     # # Sending the GET request with headers and JSON data
     # response = requests.get(url, headers=headers, json=json.dumps(data))
@@ -1507,11 +1614,11 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
         #add_tentris_endpoint_responce = add_tentris_endpoint_to_metadata(experiment_resource, triple_store_endpoint)
 
         # # BASF, Adidas, BOSCH, Tommy Hilfiger, Dickies, Globus, Tesco, Lacoste, Foot Locker, Bohemia Interactive
-        # all_iri = ["https://www.wikidata.org/wiki/Q9401", "https://www.wikidata.org/wiki/Q3895",
-        #            "https://www.wikidata.org/wiki/Q234021", "https://www.wikidata.org/wiki/Q634881",
-        #            "https://www.wikidata.org/wiki/Q114913", "https://www.wikidata.org/wiki/Q457503",
-        #            "https://www.wikidata.org/wiki/Q487494", "https://www.wikidata.org/wiki/Q309031",
-        #            "https://www.wikidata.org/wiki/Q63335", "https://www.wikidata.org/wiki/Q890779"]
+        # all_iri = ["https://www.wikidata.org/entity/Q9401", "https://www.wikidata.org/entity/Q3895",
+        #            "https://www.wikidata.org/entity/Q234021", "https://www.wikidata.org/entity/Q634881",
+        #            "https://www.wikidata.org/entity/Q114913", "https://www.wikidata.org/entity/Q457503",
+        #            "https://www.wikidata.org/entity/Q487494", "https://www.wikidata.org/entity/Q309031",
+        #            "https://www.wikidata.org/entity/Q63335", "https://www.wikidata.org/entity/Q890779"]
         #
         # # query_str_first = "CONSTRUCT {    ?s ?p ?o .} WHERE {    VALUES ?s { "+all_iri+" }    ?s ?p ?o .}"
         # subject_graph = Graph()
@@ -1823,7 +1930,7 @@ def start_repair_step(experiment_resource, module_instance_id):
 
             container_id_fixing_module = extract_X_from_turtle(response_second_step.text,
                                                                "http://w3id.org/dice-research/enexa/ontology#containerId")
-            # st.info("container_id_fixing_module is : " + container_id_fixing_module)
+            st.info("container_id_fixing_module is : " + container_id_fixing_module)
             changedlines = print_container_logs(container_id_fixing_module)
             with st.expander("🔧 Fixed triples"):
                 for change in changedlines:
@@ -1849,70 +1956,79 @@ def start_repair_step(experiment_resource, module_instance_id):
             start_tentris(experiment_resource, repaired_a_box_iri)
 
 
-def print_container_logs(pod_uid, namespace="default", timeout=300, interval=5):
+def print_container_logs(pod_uid, namespace="default", timeout=3600, interval=5):
     returnlines = []
+    status_placeholder = st.empty()
+    log_placeholder = st.empty()
+    heartbeat_placeholder = st.empty()
+    stop_heartbeat = threading.Event()
+
+    def heartbeat():
+        while not stop_heartbeat.is_set():
+            heartbeat_placeholder.markdown(f"🫀 Keep-alive ping: {time.strftime('%H:%M:%S')}")
+            time.sleep(30)  # Ping every 30 seconds
 
     try:
-        # Load in-cluster config if running inside a pod, or kubeconfig if running externally
-        config.load_incluster_config()  # If running inside Kubernetes
-        # config.load_kube_config()  # Uncomment if running outside the cluster (e.g., locally)
-
-        # Create a Kubernetes API client
+        config.load_incluster_config()
+        # config.load_kube_config()  # Uncomment if running locally
         v1 = client.CoreV1Api()
 
-        # Get the list of pods in the namespace to match by UID
+        # Find pod name from UID
         pods = v1.list_namespaced_pod(namespace=namespace)
-        pod_name = None
-
-        # Find the pod by its UID
-        for pod in pods.items:
-            if pod.metadata.uid == pod_uid:
-                pod_name = pod.metadata.name
-                break
+        pod_name = next((pod.metadata.name for pod in pods.items if pod.metadata.uid == pod_uid), None)
 
         if not pod_name:
             st.error(f"No pod found with UID {pod_uid}")
             return returnlines
 
-        # Start waiting for the pod to be in the Running state
-        end_time = time.time() + timeout  # Set the timeout limit
+        # Wait for pod to be ready
+        end_time = time.time() + timeout
         while time.time() < end_time:
             pod_status = v1.read_namespaced_pod_status(name=pod_name, namespace=namespace)
-
-            # Check if all containers are ready
-            # container_statuses = pod_status.status.container_statuses
-            # if container_statuses and all([container.ready for container in container_statuses]):
-            #     break  # All containers are ready
             phase = pod_status.status.phase
+            status_placeholder.info(f"⏳ Pod `{pod_name}` phase: **{phase}**")
+
             if phase in ["Running", "Succeeded", "Failed"]:
                 break
 
-
-            # Display a message and wait for the specified interval
-            st.info(
-                f"Waiting for pod {pod_name} to start. Current phase: {pod_status.status.phase}. Checking again in {interval} seconds...")
-            time.sleep(interval)  # Wait for the interval before checking again
+            time.sleep(interval)
 
         else:
-            # If the loop finished without breaking, it means the timeout occurred
-            st.error(f"Timed out waiting for pod {pod_name} to start.")
+            st.error(f"❌ Timed out waiting for pod `{pod_name}` to start.")
             return returnlines
 
-        # At this point, the pod should be running; get the logs for the pod
-        with st.expander("📃 Pod logs (" + str(pod_name) + "):"):
-            logs = v1.read_namespaced_pod_log(name=pod_name, namespace=namespace, follow=True, _preload_content=False,
-                                              pretty=True)
-            for log_line in logs:
-                log_line = log_line.decode("utf-8")  # Decode byte log to string
-                if log_line.startswith("INFO: ******* Found inconsistency:") or log_line.startswith(
-                        "INFO: ******* Apply Sound fix:"):
-                    returnlines.append(log_line)
-                st.text(log_line)
+        # Start heartbeat thread
+        threading.Thread(target=heartbeat, daemon=True).start()
+
+        # Show logs
+        with st.expander(f"📃 Pod logs ({pod_name}):"):
+            log_area = st.empty()
+            logs = v1.read_namespaced_pod_log(
+                name=pod_name,
+                namespace=namespace,
+                follow=True,
+                _preload_content=False,
+                pretty=True,
+            )
+
+            log_buffer = []
+            for i, log_line in enumerate(logs):
+                decoded = log_line.decode("utf-8")
+                log_buffer.append(decoded)
+
+                if decoded.startswith("INFO: ******* Found inconsistency:") or decoded.startswith("INFO: ******* Apply Sound fix:"):
+                    returnlines.append(decoded)
+
+                if i % 10 == 0:
+                    log_area.text("".join(log_buffer[-100:]))
 
     except client.exceptions.ApiException as e:
-        st.error("An error occurred when retrieving pod logs: " + str(e))
+        st.error("❌ Kubernetes API error: " + str(e))
     except Exception as e:
-        st.error("An error occurred: " + str(e))
+        st.error("❌ Unexpected error: " + str(e))
+    finally:
+        stop_heartbeat.set()  # Stop heartbeat loop when done
+        heartbeat_placeholder.empty()
 
     return returnlines
 
@@ -1961,6 +2077,7 @@ def resolve_disambiguation(disambiguations, text):
     for entry in disambiguations:
         if entry.get("item", "").strip().lower() == text_lower:
             return entry.get("output", "")
+    print(f"can not disambiguate {text_lower}")
     return ""
 
 def resolve_disambiguation_for_predicates( text):
@@ -2011,10 +2128,11 @@ def resolve_disambiguation_for_predicates( text):
     for entry in disambiguations:
         if entry.get("item", "").strip().lower() == text_lower:
             return entry.get("output", "")
+    print(f"f can not find predicate code for {text_lower}")
     return ""
 
 def getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri):
-    st.info("start triple extraction from LLM answer ")
+    #st.info("start triple extraction from LLM answer ")
     llm_answer_file_path = extract_X_from_triplestore(
         "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
         META_DATA_GRAPH_NAME,
@@ -2026,10 +2144,14 @@ def getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri):
         llmAnswerJsonL = in_file.readlines()
 
     flattened_triples = []
+    line_C = 0
     for line in llmAnswerJsonL:
+        print(f"line {line_C}")
+        line_C = line_C + 1
         try:
             data = json.loads(line)
         except json.JSONDecodeError:
+            print("skiped")
             continue  # Skip invalid JSON lines
 
         # Filter: task must be RE, input text must exist, triples must be non-empty
@@ -2058,7 +2180,10 @@ def getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri):
                 "url": url,
                 "input text": input_text,
             }
+            print(
+                f"wikidata_subject:{flat['subject']} ,wikidata_predicate:{flat['predicate']} ,wikidata_object:{flat['object']}")
             flattened_triples.append(flat)
+
     return flattened_triples
 
 
@@ -2147,8 +2272,8 @@ if uploaded_files is not None and uploaded_files != []:
         # st.subheader(" Preparing...")
         st.subheader("1️ Running extraction module")
 
-        skip_extraction = False  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
-        extraction_previous_run = "http://example.org/resource/d027408b-260b-41c9-b365-2183294edda4"
+        skip_extraction = True  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
+        extraction_previous_run = "http://example.org/resource/59d98c57-52b3-49a9-b99c-a7861985828f" #adidas
         # create experiment instance
         experiment_data = create_experiment_data()
 
@@ -2297,11 +2422,14 @@ if uploaded_files is not None and uploaded_files != []:
                         module_instance_iri)
 
                     #st.info("debug extracted_jsonlLLManswer_FromExtraction_iri is " + str(extracted_jsonlLLManswer_FromExtraction_iri))
-
+                    st.info("flattened triples")
                     flattened_triples_from_llm = getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri)
-                    for item in flattened_triples_from_llm:
-                        print(json.dumps(item, indent=2))
-
+                    #for item in flattened_triples_from_llm:
+                    #    print(json.dumps(item, indent=2))
+                    for i, item in enumerate(flattened_triples_from_llm[:3]):
+                        st.info(f"Item {i + 1}:")
+                        for key, value in item.items():
+                            st.info(f"  {key}: {value}")
 
                     file_path = extract_X_from_triplestore(
                         "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
