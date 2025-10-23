@@ -2,9 +2,11 @@ import json
 import random
 import time
 from urllib.error import HTTPError
-
+from typing import Tuple
 import threading
-
+import requests
+import json
+from typing import List, Dict
 import rdflib
 import streamlit as st
 from rdflib.compat import cast_bytes
@@ -84,6 +86,183 @@ st.set_page_config(layout="wide", initial_sidebar_state="expanded",
                    )
 
 WIKIDATA_PATTERN = re.compile("(Q|P)[0-9]+")
+
+
+
+def get_labels_from_uris(uri_list, labels_map):
+    """
+    Extracts the ID from a list of Wikidata URIs, looks up the English label,
+    and returns a comma-separated string of the labels.
+    """
+    labels = []
+    for uri in uri_list:
+        # 1. Get the ID (the last part after the final slash)
+        wikidata_id = uri.split('/')[-1]
+
+        # 2. Look up the label, using the ID as a fallback if the label isn't found
+        label = labels_map.get(wikidata_id, wikidata_id)
+
+        labels.append(wikidata_id+"("+label+")")
+
+    # Return a comma and space separated string of all collected labels
+    return ", ".join(labels)
+
+
+ALLWIKIDATAIDS=set()
+def get_wikidata_labels_hardcoded():
+    global ALLWIKIDATAIDS
+    if(len(ALLWIKIDATAIDS)==0):
+        dict1 = {
+            "Q615": "Lionel Messi", "P859": "sponsor", "Q1835": "Zin\u00e9dine Zidane", "Q3895": "Adidas AG",
+            "Q9617": "Arsenal F.C.",
+            "Q10125": "Andy Murray", "Q15789": "FC Bayern Munich", "Q18656": "Manchester United F.C.",
+            "Q25369": "Kobe Bryant",
+            "Q18729": "Reading F.C.", "Q26517": "Luis Su\u00e1rez", "Q55801": "New Zealand national rugby union team",
+            "Q113135": "Italy national rugby union team", "Q136678": "James Harden",
+            "Q79800": "Argentina men's national association football team",
+            "Q173139": "George Weah", "Q184586": "Gareth Bale", "Q179051": "Kareem Abdul-Jabbar",
+            "Q189240": "Kevin Garnett",
+            "Q193020": "Tim Duncan", "Q202295": "Tracy McGrady", "Q203258": "Kak\u00e1", "Q298531": "Chauncey Billups",
+            "Q518116": "France national rugby union team", "Q622308": "Damian Lillard", "Q661579": "Ivan Zaytsev",
+            "Q310108": "Gilbert Arenas", "Q357017": "Adidas Finale", "Q420789": "Adidas Predator",
+            "Q439722": "Son Heung-min",
+            "Q309590": "Jeremy Lin", "Q716081": "Iman Shumpert", "Q3530594": "Kieron Pollard",
+            "Q4956936": "Brandon Knight (basketball)",
+            "Q17612631": "Mikel Merino", "Q2481789": "Sonny Bill Williams", "Q3038629": "Dwayne Bravo",
+            "Q3046479": "Earvin Ngapeth",
+            "Q46372260": "Darwin N\u00fa\u00f1ez", "Q66241169": "Jude Bellingham", "Q33297140": "Alexis Mac Allister",
+            "Q1215892": "National Hockey League", "Q1354960": "Mohamed Salah", "Q126888717": "Beeston F.C.",
+            "Q131466230": "Rio Ngumoha", "Q24451790": "Raphinha", "Q30007142": "Declan Rice",
+            "Q30122104": "Donovan Mitchell",
+            "Q1788081": "New Zealand Rugby", "Q2312779": "Lasith Malinga", "Q368441": "James Rodr\u00edguez",
+            "Q498478": "South Africa national rugby union team"
+        }
+
+        dict2 = {
+            "P169": "chief executive officer", "Q142": "France", "Q3895": "Adidas AG", "Q73470": "Horst Dassler",
+            "Q76751": "Adolf Dassler", "Q79990": "Christchurch", "Q123101": "Robert Louis-Dreyfus",
+            "Q132885": "Olympique de Marseille", "Q290432": "La Sant\u00e9 Prison", "Q728645": "Bernard Tapie",
+            "Q779722": "Cr\u00e9dit Lyonnais", "Q1735157": "Kasper Rorsted", "Q1871395": "Louis-Dreyfus",
+            "Q11860431": "Gerhard Wendt", "Q64755654": "Louis G. Dreyfus", "Q88417844": "Helmut Klein",
+            "Q116171882": "Herbert Herz"
+        }
+
+        dict3 ={"Q3895":"Adidas AG",
+            "Q180855":"Heineken", "Q483915":"Nike","Q1359568":"Alibaba Group","Q169167":"Metro AG",
+            "Q192334":"University of North Carolina at Chapel Hill","Q695087":"Mars Incorporated","Q20165":"Nissan Motor Co.Ltd.","Q2087161":"Heineken Experience"}
+
+        ALLWIKIDATAIDS = {**dict1, **dict2, **dict3}
+    return ALLWIKIDATAIDS
+def get_wikidata_labels_bulk(wikidata_ids: List[str]) -> Dict[str, str]:
+    """
+    Fetches English labels for a list of Wikidata Q-IDs and P-IDs using SPARQL.
+
+    Args:
+        wikidata_ids: A list of Wikidata ID strings (e.g., ['Q142', 'P31', 'Q5']).
+
+    Returns:
+        A dictionary mapping the original ID to its English label.
+        (e.g., {'Q142': 'France', 'P31': 'instance of'}).
+    """
+    if not wikidata_ids:
+        return {}
+
+    # 1. Format the IDs for the SPARQL query
+    # Example: wd:Q142 wd:P31 wd:Q5
+    id_list_str = ' '.join([f'wd:{i}' for i in wikidata_ids])
+
+    # 2. Construct the SPARQL Query
+    # The query selects the ID and its English label, filtering only for the requested IDs.
+    sparql_query = f"""
+    SELECT ?id ?label WHERE {{
+      VALUES ?id {{ {id_list_str} }}
+      ?id rdfs:label ?label .
+      FILTER(LANG(?label) = "en")
+    }}
+    """
+
+    # 3. Define the API endpoint and headers
+    endpoint = "https://query.wikidata.org/sparql"
+    headers = {
+        'Accept': 'application/json',
+        'User-Agent': 'Python Wikidata Label Fetcher/1.0 (YourAppName/YourContact)'
+    }
+
+    # 4. Send the request
+    try:
+        response = requests.get(
+            endpoint,
+            params={'query': sparql_query},
+            headers=headers
+        )
+        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+
+        data = response.json()
+
+        # 5. Process the results
+        labels_map = {}
+        for binding in data['results']['bindings']:
+            # The full URL is returned, e.g., "http://www.wikidata.org/entity/Q142"
+            full_uri = binding['id']['value']
+            # Extract the ID (Q142) from the URL
+            item_id = full_uri.split('/')[-1]
+
+            # Extract the label
+            label = binding['label']['value']
+
+            labels_map[item_id] = label
+
+        return labels_map
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data from Wikidata: {e}")
+        return {}
+
+
+def extract_unique_ids(all_triples: set[Tuple[str, str, str]]) -> List[str]:
+    """
+    Extracts all unique subject, predicate, and object IDs from a set of triples
+    and returns them as a list.
+    """
+    if not all_triples:
+        return []
+
+    # Use a set comprehension to iterate over all tuples, then over each item
+    # in the tuple, ensuring that the resulting collection contains only unique IDs.
+    unique_ids_set = {
+        item
+        for triple in all_triples
+        for item in triple
+    }
+
+    # Convert the unique set back to a list for convenience
+    return list(unique_ids_set)
+
+
+def add_labels_to_dataframe(df: pd.DataFrame, labels_map: dict) -> pd.DataFrame:
+    """
+    Adds English label columns to a DataFrame of Wikidata triples.
+
+    Args:
+        df: DataFrame with 'Subject', 'Predicate', 'Object' columns (Wikidata IDs).
+        labels_map: Dictionary mapping Wikidata IDs to their English labels.
+
+    Returns:
+        DataFrame with three new label columns.
+    """
+    # 1. Create a dictionary that includes a fallback/default value for non-found IDs.
+    # We use a lambda to map the ID to the label, using the ID itself as the fallback.
+    label_mapper = lambda wd_id: labels_map.get(wd_id, wd_id)
+
+    # 2. Map the labels for each column
+    df['Subject Label'] = df['Subject'].apply(label_mapper)
+    df['Predicate Label'] = df['Predicate'].apply(label_mapper)
+    df['Object Label'] = df['Object'].apply(label_mapper)
+
+    # Optional: Reorder columns to show IDs and Labels side-by-side
+    df = df[['Subject', 'Subject Label', 'Predicate', 'Predicate Label', 'Object', 'Object Label']]
+
+    return df
 
 def write_file_to_folder(folder, filename, content):
     try:
@@ -906,7 +1085,7 @@ def extract_ip(container_module_URL):
 
     return ip
 
-def filter_jsonl_lines(keyword1: str, keyword2: str, keyword3: str,llmAnswerJsonL):
+def filter_jsonl_lines(keyword1: str, keyword2: str, keyword3: str,llmAnswerJsonL,all_triples, all_texts):
     #st.info(f"keyword1 {keyword1}, keyword2 {keyword2}, keyword3 {keyword3}" )
     #st.info(f"lines loaded {len(llmAnswerJsonL)}")
     matched_lines_count = 0
@@ -919,15 +1098,18 @@ def filter_jsonl_lines(keyword1: str, keyword2: str, keyword3: str,llmAnswerJson
                 index3 = clean_line.find(keyword3, index2 + len(keyword2))
                 if index3 != -1:
                     # If all conditions pass, we have a sequential match (1 < 2 < 3)
-                    st.success(f"{keyword1} {keyword2} {keyword3}")
+                    #st.success(f"{keyword1} {keyword2} {keyword3}")
+                    new_triple = (keyword1, keyword2, keyword3)
+                    all_triples.add(new_triple)
                     tmp_data = json.loads(line)
-                    st.success(f"{tmp_data['url']}  {tmp_data['input text']}")
+                    cleaned_text = tmp_data['input text'].replace('\n', ' ').strip()
+                    all_texts.add(cleaned_text)
+                    #st.success(f"URL: {tmp_data['url']}\nInput Text: {cleaned_text}")
                     matched_lines_count += 1
-                    return True
 
     #st.info(f"\n--- Process Complete ---")
     #st.info(f"Total lines found: {matched_lines_count}")
-    return False
+    return all_triples, all_texts
 
 def start_cel_explainer_module(experiment_resource,tentrisSparqlEndpoint, queryFromCEL,positiveExamples,negativeExamples):
     cel_explainer_experiment_data = experiment_data  # create_experiment_data()
@@ -1010,7 +1192,9 @@ def matchTheTriplesFromExtraction(positive_file_path):
 
     #for s, p, o in llm_resolved_triple_set:
         #st.info(f"  (S: {s}, P: {p}, O: {o})")
+    all_triples: set[Tuple[str, str, str]] = set()
 
+    all_texts = set()
     match_count = 0
     line_number = 0
     isPrinter = False
@@ -1033,13 +1217,13 @@ def matchTheTriplesFromExtraction(positive_file_path):
                     file_triple = (file_subject.strip(), file_predicate.strip(), file_object.strip())
                     #st.warning("detect from file ")
                     if(file_subject.strip() != "s"):
-                        isPrinter = filter_jsonl_lines(file_subject.strip().split('/')[-1], file_predicate.strip().split('/')[-1], file_object.strip().split('/')[-1],llmAnswerJsonL)
+                        all_triples, all_texts = filter_jsonl_lines(file_subject.strip().split('/')[-1], file_predicate.strip().split('/')[-1], file_object.strip().split('/')[-1],llmAnswerJsonL,all_triples, all_texts)
 
-                    if isPrinter:
-                        continue
-
-                    if (file_subject.strip() != "s"):
-                        isPrinter = filter_jsonl_lines(file_object.strip().split('/')[-1], file_predicate.strip().split('/')[-1], file_subject.strip().split('/')[-1],llmAnswerJsonL)
+                    # if isPrinter:
+                    #     continue
+                    #
+                    # if (file_subject.strip() != "s"):
+                    #     isPrinter = filter_jsonl_lines(file_object.strip().split('/')[-1], file_predicate.strip().split('/')[-1], file_subject.strip().split('/')[-1],llmAnswerJsonL)
                     #st.warning("detect from triples ")
                     # 3. Check for a match in the pre-processed set
                     # if file_triple in llm_resolved_triple_set:
@@ -1060,7 +1244,11 @@ def matchTheTriplesFromExtraction(positive_file_path):
         st.error(f"\nError: File not found at path: {positive_file_path}")
     except Exception as e:
         st.error(f"\nAn unexpected error occurred: {e}")
+
+    return all_triples, all_texts
 def track_triples(response_start_module_cel_explainer):
+    all_triples: set[Tuple[str, str, str]] = set()
+    all_texts = set()
     cel_explainer_module_instance_iri = extract_id_from_turtle(response_start_module_cel_explainer.text)
 
     positive_file_iri = extract_X_from_triplestore(
@@ -1092,7 +1280,8 @@ def track_triples(response_start_module_cel_explainer):
     #st.info(positive_file_path)
     #st.info(negative_file_path)
 
-    matchTheTriplesFromExtraction(positive_file_path)
+    all_triples, all_texts = matchTheTriplesFromExtraction(positive_file_path)
+    return all_triples, all_texts
 
 
 def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
@@ -1134,24 +1323,6 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
         "Accept": "application/json"
     }
 
-    label_dict = {
-        "Q778575": "conglomerate",
-        "Q4830453": "business",
-        "Q207652": "chemical industry",
-        "Q134161": "joint-stock company",
-        "Q270791": "state-owned enterprise",
-        "Q249556": "railway company",
-        "Q206361": "concern",
-        "Q279014": "Societas Europaea",
-        "Q726870": "brick and mortar",
-        "Q658255": "subsidiary",
-        "Q1589009": "privately held company",
-        "Q114913": "Dickies",
-        "Q507619": "retail chain",
-        "Q487494": "Tesco",
-        "Q891723": "public company",
-        "Q210167": "video game developer",
-        "Q180846": "supermarket", }
 
     # train    'http://0.0.0.0:8000/cel' '{"pos":["http://www.benchmark.org/family#F2F14"], "neg":["http://www.benchmark.org/family#F10F200"], "model":"Drill","path_embeddings":"embeddings/Keci_entity_embeddings.csv"}'
 
@@ -1164,6 +1335,7 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     #1 st.info("locationOfCSVFile is "+str(locationOfCSVFile))
     # evaluate 'http://0.0.0.0:8000/cel' '{"pos":["http://www.benchmark.org/family#F2F14"], "neg":["http://www.benchmark.org/family#F10F200"], "model":"Drill","pretrained":"pretrained","path_embeddings":"embeddings/Keci_entity_embeddings.csv"}'
     # First example: BASF, Adidas vs. Bosch
+    label4Ids = get_wikidata_labels_hardcoded()
     firstLearningProblemPositives = ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q1359568"]
     firstLearningProblemNegative = ["http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q180855", "http://www.wikidata.org/entity/Q192334", "http://www.wikidata.org/entity/Q2087161", "http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q695087", "http://www.wikidata.org/entity/Q169167"]
 
@@ -1207,7 +1379,12 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     }
 
     response = requests.get(url, headers=headers, data=json.dumps(data))
-    first_example_label = f"$E^+={firstLearningProblemPositives}, E^-={firstLearningProblemNegative}$"
+    positive_labels = get_labels_from_uris(firstLearningProblemPositives, label4Ids)
+    negative_labels = get_labels_from_uris(firstLearningProblemNegative, label4Ids)
+
+    # Create the final string with the retrieved labels
+
+    first_example_label = f"$E^+={positive_labels}, E^-={negative_labels}$"
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
@@ -1245,7 +1422,39 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
                                queryFromCELfirstExample,
                                firstLearningProblemPositives,
                                firstLearningProblemNegative)
-    track_triples(response_start_module_cel_explainer)
+    firstexample_all_triples, firstexample_all_texts = track_triples(response_start_module_cel_explainer)
+    st.info(f"firstexample_all_triples: {len(firstexample_all_triples)} firstexample_all_texts: {len(firstexample_all_texts)} ")
+
+    unique_ids = extract_unique_ids(firstexample_all_triples)
+    #label4Ids = get_wikidata_labels_bulk(unique_ids)
+    label4Ids=get_wikidata_labels_hardcoded()
+
+    df_triples = pd.DataFrame(
+        list(firstexample_all_triples),
+        columns=['Subject', 'Predicate', 'Object']
+    )
+
+    #  Add the new label columns
+    df_labeled_triples = add_labels_to_dataframe(df_triples, label4Ids)
+
+    # df_triples = pd.DataFrame(
+    #     list(firstexample_all_triples),
+    #     columns=['Subject', 'Predicate', 'Object']
+    # )
+    with st.expander("⚙️  all extracted triples "):
+        st.dataframe(df_labeled_triples, use_container_width=True)
+
+    firstexample_triples_list = list(firstexample_all_triples)
+
+    firstexample_first_triple = firstexample_triples_list[0]
+    st.success(
+        f"Subject: {firstexample_first_triple[0]} ({label4Ids[firstexample_first_triple[0]]}), Predicate: {firstexample_first_triple[1]} ({label4Ids[firstexample_first_triple[1]]}), Object: {firstexample_first_triple[2]} ({label4Ids[firstexample_first_triple[2]]})")
+    st.success(str(firstexample_all_texts))
+
+    formatted_dict_text = json.dumps(label4Ids, indent=4)
+    st.info("\n--- Copyable label4Ids Dictionary ---")
+    st.info(formatted_dict_text)
+    st.info("--- End of Dictionary ---")
 
     # queryFromCELfirstExample = data_response_first_example['Results'][1]['SPARQLQuery']
     # response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource, tentrisUrl,
@@ -1301,7 +1510,9 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     }
     #st.info(data)
     response = requests.get(url, headers=headers, data=json.dumps(data))
-    second_example_label = f"$E^+={secondLearningProblemPositive}, E^-={secondLearningProblemNegative}$"
+    positive_labels = get_labels_from_uris(secondLearningProblemPositive, label4Ids)
+    negative_labels = get_labels_from_uris(secondLearningProblemNegative, label4Ids)
+    second_example_label = f"$E^+={positive_labels}, E^-={negative_labels}$"
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
@@ -1325,8 +1536,38 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
 
     queryFromCELSecondExample = data_response_second_example['Results'][0]['SPARQLQuery']
     response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource,tentrisUrl, queryFromCELSecondExample,secondLearningProblemPositive,secondLearningProblemNegative)
-    track_triples(response_start_module_cel_explainer)
+    secondexample_all_triples, secondexample_all_texts =track_triples(response_start_module_cel_explainer)
+    st.info(
+        f"secondexample_all_triples: {len(secondexample_all_triples)} secondexample_all_texts: {len(secondexample_all_texts)} ")
 
+    unique_ids = extract_unique_ids(secondexample_all_triples)
+    #label4Ids = get_wikidata_labels_bulk(unique_ids)
+    label4Ids = get_wikidata_labels_hardcoded()
+
+    df_triples = pd.DataFrame(
+        list(secondexample_all_triples),
+        columns=['Subject', 'Predicate', 'Object']
+    )
+
+    #  Add the new label columns
+    df_labeled_triples = add_labels_to_dataframe(df_triples, label4Ids)
+
+    # df_triples = pd.DataFrame(
+    #     list(firstexample_all_triples),
+    #     columns=['Subject', 'Predicate', 'Object']
+    # )
+    with st.expander("⚙️  all extracted triples "):
+        st.dataframe(df_labeled_triples, use_container_width=True)
+    secondexample_triples_list = list(secondexample_all_triples)
+
+    secondexample_first_triple = secondexample_triples_list[0]
+    st.success(f"Subject: {secondexample_first_triple[0]} ({label4Ids[secondexample_first_triple[0]]}), Predicate: {secondexample_first_triple[1]} ({label4Ids[secondexample_first_triple[1]]}), Object: {secondexample_first_triple[2]} ({label4Ids[secondexample_first_triple[2]]})")
+    st.success(str(secondexample_all_texts))
+
+    formatted_dict_text = json.dumps(label4Ids, indent=4)
+    st.info("\n--- Copyable label4Ids Dictionary ---")
+    st.info(formatted_dict_text)
+    st.info("--- End of Dictionary ---")
     # queryFromCELSecondExample = data_response_second_example['Results'][1]['SPARQLQuery']
     # response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource, tentrisUrl,
     #                                                                  queryFromCELSecondExample,
@@ -2385,7 +2626,7 @@ if uploaded_files is not None and uploaded_files != []:
                 logging.info("Starting extraction module ...")
 
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                st.write(f"🕒 Current time: {current_time}")
+                #st.write(f"🕒 Current time: {current_time}")
 
                 if not skip_extraction:
                     response_start_module = start_extraction_module(experiment_resource, urls_to_process_iri,
@@ -2500,7 +2741,7 @@ if uploaded_files is not None and uploaded_files != []:
                             module_instance_iri))
 
                     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    st.write(f"🕒 Current time: {current_time}")
+                    #st.write(f"🕒 Current time: {current_time}")
 
 
                     start_repair_step(experiment_resource, extracted_file_iri)
@@ -2649,3 +2890,5 @@ if uploaded_files is not None and uploaded_files != []:
 #
 #
 # st.button('Continue from Step 4 (Tentris)', on_click=send_tentris_req)
+
+
