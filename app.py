@@ -40,6 +40,7 @@ appName = "app3"
 sleep_Before_show_explanation_link_in_seconds=35
 
 flattened_triples_from_llm = []
+llmAnswerJsonL = []
 
 # config
 SERVER_ENDPOINT= configD("SERVER_ENDPOINT", default="http://localhost:8080")
@@ -331,7 +332,7 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
         st.error("Error while registering exmplanation json file. :cry:")
         st.error(response_adding_explanation_file.status_code + " " + str(response_adding_explanation_file))
     else:
-        st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
+        #st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
         urls_to_explanation_json_iri = extract_id_from_turtle(response_adding_explanation_file.text)
 
         # start module
@@ -357,7 +358,7 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
             @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
             [] rdf:type enexa:ModuleInstance ;
             enexa:experiment <{}> ;
-            alg:instanceOf <http://w3id.org/dice-research/enexa/module/explanation-chat-v2/0.0.1> ;
+            alg:instanceOf <http://w3id.org/dice-research/enexa/module/explanation-chat-v2/2.0.0> ;
             <http://w3id.org/dice-research/enexa/module/explanation/parameter/path_json> <{}>;
             <http://w3id.org/dice-research/enexa/module/explanation/parameter/path_to_HUGGINGFACEHUB_API_TOKEN> <{}> .
             """.format(experiment_resource, urls_to_explanation_json_iri, urls_to_openai_key_iri)
@@ -373,11 +374,11 @@ def start_explanation_module(experiment_resource, json_object, chatbot_label):
             start_container_endpoint = SERVER_ENDPOINT + "/start-container"
             response_start_module_explain = requests.post(start_container_endpoint, data=start_module_message_as_jsonld, headers={"Content-Type": "application/ld+json", "Accept": "text/turtle"})
             #st.info(response_start_module_explain.text)
-            container_name_explain = extract_X_from_turtle(response_start_module_explain.text,
-                                                           "http://w3id.org/dice-research/enexa/ontology#containerName")
-
-            internal = extract_X_from_turtle(response_start_module_explain.text,
-                                                           "http://w3id.org/dice-research/enexa/ontology#internalEndpointURL")
+            # container_name_explain = extract_X_from_turtle(response_start_module_explain.text,
+            #                                                "http://w3id.org/dice-research/enexa/ontology#containerName")
+            #
+            # internal = extract_X_from_turtle(response_start_module_explain.text,
+            #                                                "http://w3id.org/dice-research/enexa/ontology#internalEndpointURL")
 
             external = extract_X_from_turtle(response_start_module_explain.text,
                                          "http://w3id.org/dice-research/enexa/ontology#externalEndpointURL")
@@ -621,7 +622,7 @@ def extract_X_from_turtle(turtle_text, x):
         #1 st.info("Extracted X is : " + o)
         return o
     else:
-        st.warning("No results found for the given query.")
+        st.warning(f"No results found for the given query. {query}")
         return None
 
 
@@ -905,6 +906,28 @@ def extract_ip(container_module_URL):
 
     return ip
 
+def filter_jsonl_lines(keyword1: str, keyword2: str, keyword3: str,llmAnswerJsonL):
+    #st.info(f"keyword1 {keyword1}, keyword2 {keyword2}, keyword3 {keyword3}" )
+    #st.info(f"lines loaded {len(llmAnswerJsonL)}")
+    matched_lines_count = 0
+    for line_number, line in enumerate(llmAnswerJsonL, 1):
+        clean_line = line.strip()
+        index1 = clean_line.find(keyword1)
+        if index1 != -1:
+            index2 = clean_line.find(keyword2, index1 + len(keyword1))
+            if index2 != -1:
+                index3 = clean_line.find(keyword3, index2 + len(keyword2))
+                if index3 != -1:
+                    # If all conditions pass, we have a sequential match (1 < 2 < 3)
+                    st.success(f"{keyword1} {keyword2} {keyword3}")
+                    tmp_data = json.loads(line)
+                    st.success(f"{tmp_data['url']}  {tmp_data['input text']}")
+                    matched_lines_count += 1
+                    return True
+
+    #st.info(f"\n--- Process Complete ---")
+    #st.info(f"Total lines found: {matched_lines_count}")
+    return False
 
 def start_cel_explainer_module(experiment_resource,tentrisSparqlEndpoint, queryFromCEL,positiveExamples,negativeExamples):
     cel_explainer_experiment_data = experiment_data  # create_experiment_data()
@@ -929,7 +952,7 @@ def start_cel_explainer_module(experiment_resource,tentrisSparqlEndpoint, queryF
         st.error("Error while registering query_file_name file. :cry:")
         st.error(response_adding_explainer_query_file.status_code + " " + str(response_adding_explainer_query_file))
     else:
-        st.success("File : \"" + query_file_name + "\" add to Enexa service successfully :ok_hand:")
+        #st.success("File : \"" + query_file_name + "\" add to Enexa service successfully :ok_hand:")
         urls_to_explainer_query_iri = extract_id_from_turtle(response_adding_explainer_query_file.text)
         start_module_message = """
                                         @prefix alg: <http://www.w3id.org/dice-research/ontologies/algorithm/2023/06/> .
@@ -958,7 +981,7 @@ def start_cel_explainer_module(experiment_resource,tentrisSparqlEndpoint, queryF
                                                       data=start_module_message_as_jsonld,
                                                       headers={"Content-Type": "application/ld+json",
                                                                "Accept": "text/turtle"})
-        st.info(response_start_module_explain.text)
+        #st.info(response_start_module_explain.text)
         container_id_cel_explainer_step_deployed = extract_X_from_turtle(response_start_module_explain.text,
                                                                          "http://w3id.org/dice-research/enexa/ontology#containerId")
 
@@ -983,14 +1006,14 @@ def matchTheTriplesFromExtraction(positive_file_path):
         except KeyError as e:
             print(f"Warning: Skipping LLM triple due to missing key {e}")
 
-    st.info(f"Loaded {len(llm_resolved_triple_set)} unique resolved triples from LLM data for matching.")
+    #st.info(f"Loaded {len(llm_resolved_triple_set)} unique resolved triples from LLM data for matching.")
 
-    for s, p, o in llm_resolved_triple_set:
-        st.info(f"  (S: {s}, P: {p}, O: {o})")
+    #for s, p, o in llm_resolved_triple_set:
+        #st.info(f"  (S: {s}, P: {p}, O: {o})")
 
     match_count = 0
     line_number = 0
-
+    isPrinter = False
     # 2. Read the file and match each triple
     try:
         with open(positive_file_path, 'r') as file:
@@ -999,7 +1022,8 @@ def matchTheTriplesFromExtraction(positive_file_path):
                 line = line.strip()
                 if not line:
                     continue
-
+                if isPrinter:
+                    continue
                 parts = line.split(',')
 
                 if len(parts) == 3:
@@ -1007,26 +1031,69 @@ def matchTheTriplesFromExtraction(positive_file_path):
                     file_subject, file_predicate, file_object = parts
                     #st.info(f"{file_subject}, {file_predicate},{file_object}")
                     file_triple = (file_subject.strip(), file_predicate.strip(), file_object.strip())
+                    #st.warning("detect from file ")
+                    if(file_subject.strip() != "s"):
+                        isPrinter = filter_jsonl_lines(file_subject.strip().split('/')[-1], file_predicate.strip().split('/')[-1], file_object.strip().split('/')[-1],llmAnswerJsonL)
 
+                    if isPrinter:
+                        continue
+
+                    if (file_subject.strip() != "s"):
+                        isPrinter = filter_jsonl_lines(file_object.strip().split('/')[-1], file_predicate.strip().split('/')[-1], file_subject.strip().split('/')[-1],llmAnswerJsonL)
+                    #st.warning("detect from triples ")
                     # 3. Check for a match in the pre-processed set
-                    if file_triple in llm_resolved_triple_set:
-                        st.success(f"\n✅ MATCH FOUND (Line {line_number}):")
-                        st.success(f"  File Triple: {file_triple}")
-                        st.success(f"  Matches LLM Resolved Triple.")
-                        match_count += 1
-                    else:
-                         # Uncomment this block to see non-matching triples
-                        print(f"\n❌ NO MATCH (Line {line_number}): {file_triple}")
+                    # if file_triple in llm_resolved_triple_set:
+                    #     st.success(f"\n✅ MATCH FOUND (Line {line_number}):")
+                    #     st.success(f"  File Triple: {file_triple}")
+                    #     st.success(f"  Matches LLM Resolved Triple.")
+                    #     match_count += 1
+                    # else:
+                    #      # Uncomment this block to see non-matching triples
+                    #     print(f"\n❌ NO MATCH (Line {line_number}): {file_triple}")
 
                 else:
                     print(f"Skipping line {line_number}: Expected 3 comma-separated parts, found {len(parts)}.")
 
-        st.info(f"\n--- Matching Complete. Total Matches Found: {match_count} ---")
+        #st.info(f"\n--- Matching Complete. Total Matches Found: {match_count} ---")
 
     except FileNotFoundError:
         st.error(f"\nError: File not found at path: {positive_file_path}")
     except Exception as e:
         st.error(f"\nAn unexpected error occurred: {e}")
+def track_triples(response_start_module_cel_explainer):
+    cel_explainer_module_instance_iri = extract_id_from_turtle(response_start_module_cel_explainer.text)
+
+    positive_file_iri = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/module/cel-explainer/result/positivefile", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        cel_explainer_module_instance_iri)
+
+    positive_file_path = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        positive_file_iri)
+
+    negative_file_iri = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/module/cel-explainer/result/negativefile", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        cel_explainer_module_instance_iri)
+
+    negative_file_path = extract_X_from_triplestore(
+        "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
+        META_DATA_GRAPH_NAME,
+        negative_file_iri)
+
+    #st.info(positive_file_path)
+    #st.info(negative_file_path)
+
+    positive_file_path = positive_file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
+    negative_file_path = negative_file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
+
+    #st.info(positive_file_path)
+    #st.info(negative_file_path)
+
+    matchTheTriplesFromExtraction(positive_file_path)
+
 
 def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     #st.info(        "starting cel service" + "experiment_resource :" + experiment_resource + "tentrisUrl :" + tentrisUrl + "embedding_csv_iri :" + embedding_csv_iri)
@@ -1097,9 +1164,16 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     #1 st.info("locationOfCSVFile is "+str(locationOfCSVFile))
     # evaluate 'http://0.0.0.0:8000/cel' '{"pos":["http://www.benchmark.org/family#F2F14"], "neg":["http://www.benchmark.org/family#F10F200"], "model":"Drill","pretrained":"pretrained","path_embeddings":"embeddings/Keci_entity_embeddings.csv"}'
     # First example: BASF, Adidas vs. Bosch
+    firstLearningProblemPositives = ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q1359568"]
+    firstLearningProblemNegative = ["http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q180855", "http://www.wikidata.org/entity/Q192334", "http://www.wikidata.org/entity/Q2087161", "http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q695087", "http://www.wikidata.org/entity/Q169167"]
+
+    # firstLearningProblemPositives = ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q695087",
+    #                                  "http://www.wikidata.org/entity/Q2087161"]
+    # firstLearningProblemNegative = ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q169167"]
+
     data = {
-        "pos":["http://www.wikidata.org/entity/Q3895","http://www.wikidata.org/entity/Q180855"],
-        "neg":["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
+        "pos":firstLearningProblemPositives,
+        "neg":firstLearningProblemNegative,
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -1125,15 +1199,15 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     st.info("Evaluating")
 
     data = {
-        "pos": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
-        "neg": ["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"],
+        "pos": firstLearningProblemPositives,
+        "neg": firstLearningProblemNegative,
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2
     }
 
     response = requests.get(url, headers=headers, data=json.dumps(data))
-    first_example_label = "$E^+=\\Big\{$Adidas AG (Q3895), Heineken (Q180855)$\\Big\}, E^-=\\Big\{$Nike (Q483915), Alibaba Group (Q1359568), Metro AG (Q169167), University of North Carolina at Chapel Hill (Q192334), Mars Incorporated (Q695087), Nissan Motor Co. Ltd. (Q20165), Heineken Experience (Q2087161)$\\Big\}$"
+    first_example_label = f"$E^+={firstLearningProblemPositives}, E^-={firstLearningProblemNegative}$"
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
@@ -1167,33 +1241,58 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     #st.info("Evaluating second example ")
 
     queryFromCELfirstExample = data_response_first_example['Results'][0]['SPARQLQuery']
-    start_cel_explainer_module(experiment_resource, tentrisUrl,
+    response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource, tentrisUrl,
                                queryFromCELfirstExample,
-                               ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
-                               ["http://www.wikidata.org/entity/Q483915","http://www.wikidata.org/entity/Q1359568","http://www.wikidata.org/entity/Q169167","http://www.wikidata.org/entity/Q192334","http://www.wikidata.org/entity/Q695087","http://www.wikidata.org/entity/Q20165", "http://www.wikidata.org/entity/Q2087161"])
+                               firstLearningProblemPositives,
+                               firstLearningProblemNegative)
+    track_triples(response_start_module_cel_explainer)
 
-    queryFromCELfirstExample = data_response_first_example['Results'][1]['SPARQLQuery']
-    start_cel_explainer_module(experiment_resource, tentrisUrl,
-                               queryFromCELfirstExample,
-                               ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
-                               ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568",
-                                "http://www.wikidata.org/entity/Q169167", "http://www.wikidata.org/entity/Q192334",
-                                "http://www.wikidata.org/entity/Q695087", "http://www.wikidata.org/entity/Q20165",
-                                "http://www.wikidata.org/entity/Q2087161"])
+    # queryFromCELfirstExample = data_response_first_example['Results'][1]['SPARQLQuery']
+    # response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource, tentrisUrl,
+    #                            queryFromCELfirstExample,
+    #                            firstLearningProblemPositives,
+    #                            firstLearningProblemNegative)
+    #track_triples(response_start_module_cel_explainer)
 
-    queryFromCELfirstExample = data_response_first_example['Results'][2]['SPARQLQuery']
-    start_cel_explainer_module(experiment_resource, tentrisUrl,
-                               queryFromCELfirstExample,
-                               ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855"],
-                               ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568",
-                                "http://www.wikidata.org/entity/Q169167", "http://www.wikidata.org/entity/Q192334",
-                                "http://www.wikidata.org/entity/Q695087", "http://www.wikidata.org/entity/Q20165",
-                                "http://www.wikidata.org/entity/Q2087161"])
+    # queryFromCELfirstExample = data_response_first_example['Results'][2]['SPARQLQuery']
+    # response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource, tentrisUrl,
+    #                            queryFromCELfirstExample,
+    #                            firstLearningProblemPositives,
+    #                            firstLearningProblemNegative)
+    #track_triples(response_start_module_cel_explainer)
+
+    # secondLearningProblemPositive = ["http://www.wikidata.org/entity/Q3895",
+    #   "http://www.wikidata.org/entity/Q1359568"]
+    # secondLearningProblemNegative = [
+    #   "http://www.wikidata.org/entity/Q20165",
+    #   "http://www.wikidata.org/entity/Q180855",
+    #   "http://www.wikidata.org/entity/Q192334",
+    #   "http://www.wikidata.org/entity/Q483915",
+    #   "http://www.wikidata.org/entity/Q169167"]
+
+    secondLearningProblemPositive = ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q192334", "http://www.wikidata.org/entity/Q20165"]
+    secondLearningProblemNegative = ["http://www.wikidata.org/entity/Q2087161", "http://www.wikidata.org/entity/Q695087", "http://www.wikidata.org/entity/Q169167"]
+
+    # secondLearningProblemPositive = ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q1359568",
+    #                                  "http://www.wikidata.org/entity/Q192334", "http://www.wikidata.org/entity/Q20165"]
+    # secondLearningProblemNegative = ["http://www.wikidata.org/entity/Q180855",
+    #                                  "http://www.wikidata.org/entity/Q2087161",
+    #                                  "http://www.wikidata.org/entity/Q695087", "http://www.wikidata.org/entity/Q483915",
+    #                                  "http://www.wikidata.org/entity/Q169167"]
 
 
+    # secondLearningProblemPositive = ["http://www.wikidata.org/entity/Q3895",
+    #                                  "http://www.wikidata.org/entity/Q1359568",
+    #                                  "http://www.wikidata.org/entity/Q695087",
+    #                                  "http://www.wikidata.org/entity/Q2087161"]
+    # secondLearningProblemNegative = ["http://www.wikidata.org/entity/Q20165",
+    #                                  "http://www.wikidata.org/entity/Q180855",
+    #                                  "http://www.wikidata.org/entity/Q192334",
+    #                                  "http://www.wikidata.org/entity/Q483915",
+    #                                  "http://www.wikidata.org/entity/Q169167"]
     data = {
-        "pos": ["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q20165"],
-        "neg": ["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"],
+        "pos": secondLearningProblemPositive,
+        "neg": secondLearningProblemNegative,
         "model": "Drill",
         "max_runtime": 180,
         "iter_bound": 2,
@@ -1202,7 +1301,7 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     }
     #st.info(data)
     response = requests.get(url, headers=headers, data=json.dumps(data))
-    second_example_label = "$E^+=\\Big\{$Nike (Q483915), Alibaba Group (Q1359568), Nissan Motor Co. Ltd. (Q20165)$\\Big\}, E^-=\\Big\{$Adidas AG (Q3895), Dickies (Q114913), Metro AG (Q169167)$\\Big\}$"
+    second_example_label = f"$E^+={secondLearningProblemPositive}, E^-={secondLearningProblemNegative}$"
     # Check for successful response
     if response.status_code == 200:
         # Process the JSON response data
@@ -1224,61 +1323,24 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
 
     st.info("start CEL explainer module")
 
-    queryFromCELSecondExample = data_response_second_example['Results'][1]['SPARQLQuery']
-    start_cel_explainer_module(experiment_resource, tentrisUrl,
-                                                                     queryFromCELSecondExample,
-                                                                     ["http://www.wikidata.org/entity/Q483915",
-                                                                      "http://www.wikidata.org/entity/Q1359568",
-                                                                      "http://www.wikidata.org/entity/Q20165"],
-                                                                     ["http://www.wikidata.org/entity/Q3895",
-                                                                      "http://www.wikidata.org/entity/Q180855",
-                                                                      "http://www.wikidata.org/entity/Q169167"])
-
-    queryFromCELSecondExample = data_response_second_example['Results'][2]['SPARQLQuery']
-    start_cel_explainer_module(experiment_resource, tentrisUrl,
-                               queryFromCELSecondExample,
-                               ["http://www.wikidata.org/entity/Q483915",
-                                "http://www.wikidata.org/entity/Q1359568",
-                                "http://www.wikidata.org/entity/Q20165"],
-                               ["http://www.wikidata.org/entity/Q3895",
-                                "http://www.wikidata.org/entity/Q180855",
-                                "http://www.wikidata.org/entity/Q169167"])
-
-
     queryFromCELSecondExample = data_response_second_example['Results'][0]['SPARQLQuery']
-    response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource,tentrisUrl, queryFromCELSecondExample,["http://www.wikidata.org/entity/Q483915", "http://www.wikidata.org/entity/Q1359568", "http://www.wikidata.org/entity/Q20165"],["http://www.wikidata.org/entity/Q3895", "http://www.wikidata.org/entity/Q180855","http://www.wikidata.org/entity/Q169167"])
-    cel_explainer_module_instance_iri = extract_id_from_turtle(response_start_module_cel_explainer.text)
+    response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource,tentrisUrl, queryFromCELSecondExample,secondLearningProblemPositive,secondLearningProblemNegative)
+    track_triples(response_start_module_cel_explainer)
 
-    positive_file_iri = extract_X_from_triplestore(
-        "http://w3id.org/dice-research/enexa/module/cel-explainer/result/positivefile", META_DATA_ENDPOINT,
-        META_DATA_GRAPH_NAME,
-        cel_explainer_module_instance_iri)
+    # queryFromCELSecondExample = data_response_second_example['Results'][1]['SPARQLQuery']
+    # response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource, tentrisUrl,
+    #                                                                  queryFromCELSecondExample,
+    #                                                                  secondLearningProblemPositive,
+    #                                                                  secondLearningProblemNegative)
+    # track_triples(response_start_module_cel_explainer)
 
-    positive_file_path = extract_X_from_triplestore(
-        "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
-        META_DATA_GRAPH_NAME,
-        positive_file_iri)
+    # queryFromCELSecondExample = data_response_second_example['Results'][2]['SPARQLQuery']
+    # response_start_module_cel_explainer = start_cel_explainer_module(experiment_resource, tentrisUrl,
+    #                                                                  queryFromCELSecondExample,
+    #                                                                  secondLearningProblemPositive,
+    #                                                                  secondLearningProblemNegative)
+    # track_triples(response_start_module_cel_explainer)
 
-    negative_file_iri = extract_X_from_triplestore(
-        "http://w3id.org/dice-research/enexa/module/cel-explainer/result/negativefile", META_DATA_ENDPOINT,
-        META_DATA_GRAPH_NAME,
-        cel_explainer_module_instance_iri)
-
-    negative_file_path = extract_X_from_triplestore(
-        "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
-        META_DATA_GRAPH_NAME,
-        negative_file_iri)
-
-    st.info(positive_file_path)
-    st.info(negative_file_path)
-
-    positive_file_path = positive_file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
-    negative_file_path = negative_file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
-
-    st.info(positive_file_path)
-    st.info(negative_file_path)
-
-    matchTheTriplesFromExtraction(positive_file_path)
 
     # # Sending the GET request with headers and JSON data
     # response = requests.get(url, headers=headers, json=json.dumps(data))
@@ -1298,19 +1360,8 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     #open explanation module
     explanation_json_file = {
         "learned_expression": data_response_first_example['Results'][0]['Prediction with labels'],
-        "positive_examples": {
-            "Adidas AG (Q3895)": "German multinational corporation",
-            "Heineken (Q180855)": "Dutch beer company"
-        },
-        "negative_examples": {
-            "Nike (Q483915)": "American athletic equipment company",
-            "Alibaba Group (Q1359568)": "Chinese multinational technology company",
-            "Metro AG (Q169167)": "German wholesale company",
-            "University of North Carolina at Chapel Hill (Q192334)": "public research university in Chapel Hill, North Carolina, United States",
-            "Mars, Incorporated (Q695087)": "American global food company and manufacturer",
-            "Nissan Motor Co. Ltd. (Q20165)": "Japanese company",
-            "Heineken Experience (Q2087161)": "industrial museum in Amsterdam, Netherlands"
-        },
+        "positive_examples": firstLearningProblemPositives,
+        "negative_examples": firstLearningProblemNegative,
         "source": "https://en.wikipedia.org",
         "extraction_model": "https://huggingface.co/ibm/knowgl-large",
         "learned_by": "Neural Class Expression Learner"
@@ -1326,16 +1377,8 @@ def start_cel_service_step(experiment_resource, tentrisUrl, embedding_csv_iri):
     # open explanation module
     explanation_json_file = {
         "learned_expression": data_response_second_example['Results'][0]['Prediction with labels'],
-        "positive_examples": {
-            "Nike (Q483915)": "American athletic equipment company",
-            "Alibaba Group (Q1359568)": "Chinese multinational technology company",
-            "Nissan Motor Co. Ltd. (Q20165)": "Japanese company"
-        },
-        "negative_examples": {
-            "Adidas AG (Q3895)": "German multinational corporation",
-            "Heineken (Q180855)": "Dutch beer company",
-            "Metro AG (Q169167)": "German wholesale company"
-        },
+        "positive_examples": secondLearningProblemPositive,
+        "negative_examples": secondLearningProblemNegative,
         "source": "https://en.wikipedia.org",
         "extraction_model": "https://huggingface.co/ibm/knowgl-large",
         "learned_by": "Neural Class Expression Learner"
@@ -1607,7 +1650,7 @@ def start_tentris(experiment_resource, repaired_a_box_iri):
 
         read_container_logs_stop_when_reach_x(container_id_tentris_step_deployed,"default", "Starting to listen on [::]:9080")
 
-        st.write("✅ Tentris is ready.")
+        #st.write("✅ Tentris is ready.")
         st.success("Tentris is ready",icon="✅")
         #triple_store_endpoint = "http://" + container_name_tentris_step_deployed + ":9080/sparql"
 
@@ -1930,7 +1973,7 @@ def start_repair_step(experiment_resource, module_instance_id):
 
             container_id_fixing_module = extract_X_from_turtle(response_second_step.text,
                                                                "http://w3id.org/dice-research/enexa/ontology#containerId")
-            st.info("container_id_fixing_module is : " + container_id_fixing_module)
+            #st.info("container_id_fixing_module is : " + container_id_fixing_module)
             changedlines = print_container_logs(container_id_fixing_module)
             with st.expander("🔧 Fixed triples"):
                 for change in changedlines:
@@ -2012,12 +2055,16 @@ def print_container_logs(pod_uid, namespace="default", timeout=3600, interval=5)
             )
 
             log_buffer = []
+            nextline=False
             for i, log_line in enumerate(logs):
                 decoded = log_line.decode("utf-8")
                 log_buffer.append(decoded)
-
-                if decoded.startswith("INFO: ******* Found inconsistency:") or decoded.startswith("INFO: ******* Apply Sound fix:"):
+                if(nextline):
                     returnlines.append(decoded)
+                    nextline=False
+                if decoded.startswith("******* Found inconsistency:") or decoded.startswith("******* Apply Sound fix:"):
+                    returnlines.append(decoded)
+                    nextline=True
 
                 if i % 10 == 0:
                     log_area.text("".join(log_buffer[-100:]))
@@ -2139,13 +2186,13 @@ def getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri):
         extracted_jsonlLLManswer_FromExtraction_iri)
 
     llm_answer_file_path = llm_answer_file_path.replace("enexa-dir:/", ENEXA_SHARED_DIRECTORY)
-
+    llmAnswerJsonLtemp = []
     with open(llm_answer_file_path, 'r') as in_file:
-        llmAnswerJsonL = in_file.readlines()
+        llmAnswerJsonLtemp = in_file.readlines()
 
     flattened_triples = []
     line_C = 0
-    for line in llmAnswerJsonL:
+    for line in llmAnswerJsonLtemp:
         print(f"line {line_C}")
         line_C = line_C + 1
         try:
@@ -2178,13 +2225,13 @@ def getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri):
                 "predicate candidates": triple.get("predicate candidates", ""),
                 "object candidates": triple.get("object candidates", ""),
                 "url": url,
-                "input text": input_text,
+                "input text": input_text
             }
             print(
                 f"wikidata_subject:{flat['subject']} ,wikidata_predicate:{flat['predicate']} ,wikidata_object:{flat['object']}")
             flattened_triples.append(flat)
 
-    return flattened_triples
+    return flattened_triples, llmAnswerJsonLtemp
 
 
 def read_container_logs_stop_when_reach_x(pod_uid, namespace="default", x="", timeout=300, interval=5):
@@ -2273,7 +2320,7 @@ if uploaded_files is not None and uploaded_files != []:
         st.subheader("1️ Running extraction module")
 
         skip_extraction = True  # JUST FOR DEBUGGING. SHOULD BE FALSE!!!
-        extraction_previous_run = "http://example.org/resource/59d98c57-52b3-49a9-b99c-a7861985828f" #adidas
+        extraction_previous_run = "http://example.org/resource/1e923172-0a47-4855-8b1e-3f7e1b75d055" #adidas
         # create experiment instance
         experiment_data = create_experiment_data()
 
@@ -2294,7 +2341,7 @@ if uploaded_files is not None and uploaded_files != []:
         if responce_configFile_resource.status_code != 200:
             st.error("error in upload configuration file ")
         else:
-            st.success("ENEXA generation_parameters.json file upload registered successfully.")
+            #st.success("ENEXA generation_parameters.json file upload registered successfully.")
             #1 st.info(responce_configFile_resource.text)
             # configFile_resource = extract_id_from_turtle(responce_configFile_resource.text)
             # st.success("configFile_resource is task: {}".format(configFile_resource))
@@ -2328,7 +2375,7 @@ if uploaded_files is not None and uploaded_files != []:
                 st.error("Error while registering ENEXA configuration file upload. :cry:")
                 st.error(response_adding_uploaded_file.status_code + " " + str(response_adding_uploaded_file))
             else:
-                st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
+                #st.success("File : \"" + uploaded_filename + "\" add to Enexa service successfully :ok_hand:")
                 urls_to_process_iri = extract_id_from_turtle(response_adding_uploaded_file.text)
 
                 #1 st.info("the ID for added resource (uploaded file) is: "+format(urls_to_process_iri))
@@ -2348,7 +2395,7 @@ if uploaded_files is not None and uploaded_files != []:
                     st.error("Error while starting ENEXA task: {}.".format(response_start_module))
                 else:
                     start_container_endpoint = SERVER_ENDPOINT + "/start-container"
-                    st.info("Now, the ENEXA task should be started at the ENEXA platform. Please check the status of your task at the ENEXA platform. Request to {} done.".format(start_container_endpoint))
+                    #st.info("Now, the ENEXA task should be started at the ENEXA platform. Please check the status of your task at the ENEXA platform. Request to {} done.".format(start_container_endpoint))
 
                     if skip_extraction:
                         module_instance_iri = extraction_previous_run
@@ -2422,14 +2469,15 @@ if uploaded_files is not None and uploaded_files != []:
                         module_instance_iri)
 
                     #st.info("debug extracted_jsonlLLManswer_FromExtraction_iri is " + str(extracted_jsonlLLManswer_FromExtraction_iri))
-                    st.info("flattened triples")
-                    flattened_triples_from_llm = getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri)
+                    #st.info("flattened triples")
+                    flattened_triples_from_llm, llmAnswerJsonL = getTriplesFromLLMAnswer(extracted_jsonlLLManswer_FromExtraction_iri)
+
                     #for item in flattened_triples_from_llm:
                     #    print(json.dumps(item, indent=2))
-                    for i, item in enumerate(flattened_triples_from_llm[:3]):
-                        st.info(f"Item {i + 1}:")
-                        for key, value in item.items():
-                            st.info(f"  {key}: {value}")
+                    #for i, item in enumerate(flattened_triples_from_llm[:3]):
+                        #st.info(f"Item {i + 1}:")
+                        #for key, value in item.items():
+                            #st.info(f"  {key}: {value}")
 
                     file_path = extract_X_from_triplestore(
                         "http://w3id.org/dice-research/enexa/ontology#location", META_DATA_ENDPOINT,
